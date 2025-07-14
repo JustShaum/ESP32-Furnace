@@ -1,0 +1,3238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+    <title>Furnace Control System</title>
+    <script>
+        // Prevents flash of default theme. Must be in the <head> and block.
+        // Check localStorage for theme mode and apply preload class
+        (function() {
+            try {
+                const savedMode = localStorage.getItem('furnaceThemeMode') || 'light';
+                if (savedMode === 'dark') {
+                    document.documentElement.classList.add('dark-mode-preload');
+                } else {
+                    document.documentElement.classList.add('light-mode-preload');
+                }
+            } catch (e) {
+                // Default to light mode if localStorage is not available
+                document.documentElement.classList.add('light-mode-preload');
+            }
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/css/theme.css">
+    <!-- JavaScript Libraries -->
+    <script src="/js/app.js"></script>
+    <script src="/js/theme.js" defer></script>
+    <script src="/js/hammerjs.min.js" defer></script>
+    <script src="/js/chart.min.js" defer></script>
+    <script src="/js/chartjs-plugin-zoom.min.js" defer></script>
+    <script src="/js/chartjs-date-bundle.js" defer></script>
+    <script src="/js/utils.js" defer></script>
+    <script src="/js/nav.js" defer></script>
+
+    <style>
+    /* Mobile-friendly chart controls */
+    @media (max-width: 600px) {
+        .chart-controls {
+            display: flex !important;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        
+        .chart-control-btn {
+            font-size: 14px;
+            padding: 8px 12px;
+            min-width: 80px;
+            height: auto;
+            border-radius: 6px;
+        }
+        
+        /* Stack buttons vertically on very small screens */
+        @media (max-width: 400px) {
+            .chart-controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .chart-control-btn {
+                width: 100%;
+                max-width: 200px;
+                margin-bottom: 5px;
+            }
+        }
+    }
+    .chart-container {
+    margin-top: 20px;
+    padding: 28px 12px 70px 12px;
+    background-color: var(--card-background);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    position: relative;
+    width: 100%;
+    height: 540px; /* Increased height */
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    overflow: hidden;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.chart-container:hover {
+    background-color: var(--highlight-color);
+    border-color: var(--primary-color);
+}
+:fullscreen .chart-container, .chart-container.fullscreen-active {
+    background: #222;
+    z-index: 10000;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: fixed !important;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    box-sizing: border-box;
+}
+:fullscreen .chart-container > *, .chart-container.fullscreen-active > * {
+    display: none;
+}
+:fullscreen .chart-container canvas, .chart-container.fullscreen-active canvas {
+    display: block !important;
+    position: absolute !important;
+    top: 0; left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    background: #222;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.chart-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 400px !important; /* Increased canvas height */
+    max-height: 400px !important;
+    margin-bottom: 0;
+    transition: width 0.2s, height 0.2s;
+}
+
+/* Chart controls styling */
+.chart-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.chart-control-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    min-width: 80px;
+    height: auto;
+}
+
+.chart-control-btn:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.chart-control-btn:active {
+    transform: translateY(1px);
+}
+canvas {
+    width: 100% !important;
+    height: 400px !important;
+    max-height: 400px !important;
+    background-color: var(--card-background);
+}
+.toggle-button,
+.icon-button {
+    height: 40px;
+    width: 40px;
+    font-size: 20px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+.disabled-button {
+    background-color: var(--disabled-color);
+}
+.disabled-button:hover {
+    background-color: var(--disabled-hover);
+}
+.range-controls {
+    margin-top: 20px;
+    padding: 18px;
+    background-color: var(--card-background);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.range-controls:hover {
+    background-color: var(--highlight-color);
+    border-color: var(--primary-color);
+}
+.range-inputs {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+.range-inputs div {
+    flex: 1;
+    min-width: 200px;
+}
+.range-inputs label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+.range-inputs input {
+    width: 90%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-background);
+    color: var(--text-color);
+    font-size: 16px;
+}
+.tooltip {
+    position: absolute;
+    background-color: var(--card-background);
+    color: var(--text-color);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 100;
+    white-space: nowrap;
+}
+.icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    vertical-align: middle;
+}
+
+
+.active-profile-option {
+    font-weight: bold;
+    color: var(--success-color);
+}
+.hour-section h3 {
+    padding: 10px;
+    margin: 0;
+    background-color: var(--card-background);
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.hour-points-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    padding: 15px;
+}
+.time-info {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: var(--card-background);
+    border-radius: 8px;
+    text-align: center;
+    font-weight: bold;
+}
+        .time-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--card-background);
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* Media queries for responsive design */
+        @media (min-width: 768px) {
+            .hour-points-container {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+        
+        /* Heating Schedule Styles */
+        .schedule-container {
+    margin-top: 32px;
+    margin-bottom: 32px;
+    padding: 24px 16px 24px 16px;
+    background-color: var(--card-background);
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #333);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.schedule-container:hover {
+    background-color: var(--highlight-color);
+    border-color: var(--primary-color);
+}
+.schedule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+}
+.schedule-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 24px;
+    min-height: 48px;
+    border-radius: 8px;
+    background: transparent;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 4px;
+}
+.schedule-entry {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 24px;
+    padding: 16px 12px 12px 12px;
+    background-color: var(--card-background, #1a232b);
+    border-radius: 10px;
+    border: 1px solid var(--border-color, #333);
+    box-sizing: border-box;
+    margin-bottom: 0;
+    min-width: 0;
+}
+.schedule-fields-row, .schedule-fields-ramp {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 18px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+@media (max-width: 700px) {
+    .schedule-fields-row, .schedule-fields-ramp {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+}
+@media (max-width: 700px) {
+    .schedule-entry, .schedule-entry .schedule-fields {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+}
+
+.schedule-entry label,
+.schedule-entry input,
+.schedule-entry span,
+.schedule-entry button {
+    margin-bottom: 6px;
+}
+.schedule-entry input[type="time"],
+.schedule-entry input[type="number"] {
+    min-width: 60px;
+    max-width: 110px;
+    flex: 1 1 60px;
+}
+.schedule-entry .remove-btn {
+    min-width: 80px;
+    margin-left: auto;
+}
+@media (max-width: 700px) {
+    .schedule-entry {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .schedule-header {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+    .schedule-actions {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+    }
+}
+
+.schedule-entry input[type="time"] {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-background);
+    color: var(--text-color);
+    font-size: 14px;
+}
+.schedule-entry input[type="number"] {
+    width: 100px;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-background);
+    color: var(--text-color);
+    font-size: 14px;
+}
+.schedule-entry label {
+    font-weight: 500;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+.schedule-entry .remove-btn {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s ease;
+}
+.schedule-entry .remove-btn:hover {
+    background-color: #c82333;
+}
+.schedule-actions {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.schedule-example {
+    background-color: var(--card-background);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-top: 20px;
+}
+.schedule-example h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--text-color);
+}
+.schedule-example p {
+    margin: 5px 0;
+    color: var(--text-color);
+    font-family: monospace;
+    font-size: 14px;
+}
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+.btn-success {
+    background-color: var(--success-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+.btn-success:hover {
+    background-color: #218838;
+}
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+        /* Media queries for responsive design */
+        @media (max-width: 768px){.header-with-status{flex-direction:column;align-items:flex-start;gap:15px}.header-controls{width:100%;justify-content:flex-end}.range-inputs{flex-direction:column}.profile-controls{flex-direction:column;align-items:flex-start}.profile-controls>div{width:100%}.profile-controls select{flex:1}}
+        
+        /* Profile controls styling */
+        .profile-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--card-background);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 15px;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .profile-controls:hover {
+            background-color: var(--highlight-color);
+            border-color: var(--primary-color);
+        }
+        .profile-controls > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .profile-controls label {
+            font-weight: 500;
+            color: var(--text-color);
+            white-space: nowrap;
+        }
+        .profile-controls select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-background);
+            color: var(--text-color);
+            font-size: 14px;
+            min-width: 200px;
+        }
+        .profile-controls button {
+            margin-left: 10px;
+        }
+        
+        /* Chart controls and legend styling */
+        .chart-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .chart-control-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+        .chart-control-btn:hover {
+            background-color: var(--primary-hover);
+        }
+        .chart-legend {
+            margin-top: 15px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        
+        /* Manual Time/Temperature Setting Styles */
+        .manual-time-setting {
+    margin-top: 32px;
+    margin-bottom: 32px;
+    padding: 18px 16px;
+    background-color: var(--card-background);
+    border-radius: 10px;
+    border: 1px solid var(--border-color, #333);
+}
+        .time-temp-controls {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .control-group label {
+            font-weight: 500;
+            color: var(--text-color);
+            white-space: nowrap;
+        }
+        .control-group select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-background);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .control-group input[type="number"] {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-background);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: var(--card-background);
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            width: 90%; max-width: 400px;
+            box-shadow: var(--card-shadow);
+            color: var(--text-color);
+        }
+        .close {
+            color: var(--error-color);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modal-close {
+            color: var(--error-color);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modal-close:hover {
+            opacity: 0.7;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-background);
+            color: var(--text-color);
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        /* Mobile fix: make chart container flexible so nothing is cut off */
+        @media (max-width: 600px) {
+            .chart-container {
+                height: auto !important;
+                overflow: visible !important;
+                min-height: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Include navigation component -->
+        <div id="navigation">
+            <!-- Navigation will be loaded here by JavaScript -->
+        </div>
+        
+
+        <!-- Save Program Modal -->
+        <div id="saveProgramModal" class="modal" style="display:none;">
+          <div class="modal-content">
+            <span class="close" id="closeSaveProgramModal">&times;</span>
+            <h2>Save Temperature Program</h2>
+                <div class="form-group">
+                    <label for="programNameInput">Program Name:</label>
+                    <input type="text" id="programNameInput" maxlength="32" placeholder="Enter program name...">
+                </div>
+                <div class="form-group">
+                    <label for="programDescInput">Description (optional):</label>
+                    <textarea id="programDescInput" rows="3" placeholder="Enter a description for this program..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="programSlotSelect">Save to Slot:</label>
+                    <select id="programSlotSelect">
+                        <option value="0">Slot 1</option>
+                        <option value="1">Slot 2</option>
+                        <option value="2">Slot 3</option>
+                        <option value="3">Slot 4</option>
+                        <option value="4">Slot 5</option>
+                        <option value="5">Slot 6</option>
+                        <option value="6">Slot 7</option>
+                        <option value="7">Slot 8</option>
+                        <option value="8">Slot 9</option>
+                        <option value="9">Slot 10</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button id="confirmSaveProgramBtn" class="btn-primary">Save Program</button>
+                    <button id="cancelSaveProgramBtn" class="btn-danger">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-panel">
+            <h2>Current Status</h2>
+            <div id="errorMessages"></div>
+            <div id="wifiButton" style="margin-bottom: 15px; display: none;">
+                <a href="/setup" class="button">
+                    <span class="icon-wifi">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 3C7.95 3 4.21 4.34 1.2 6.6L3 9C5.5 7.12 8.62 6 12 6C15.38 6 18.5 7.12 21 9L22.8 6.6C19.79 4.34 16.05 3 12 3ZM12 9C9.24 9 6.6 9.9 4.4 11.4L6.2 13.8C7.8 12.6 9.8 12 12 12C14.2 12 16.2 12.6 17.8 13.8L19.6 11.4C17.4 9.9 14.76 9 12 9ZM12 15C10.65 15 9.4 15.45 8.4 16.2L10.2 18.6C10.8 18.2 11.4 18 12 18C12.6 18 13.2 18.2 13.8 18.6L15.6 16.2C14.6 15.45 13.35 15 12 15ZM12 21L9 18H15L12 21Z"/>
+                        </svg>
+                    </span>
+                    Connect to WiFi
+                </a>
+            </div>
+            <p>Current Temperature: <span id="currentTemp">--</span> C</p>
+            <p>Current Time: <span id="currentTime">--</span></p>
+            <p>Target Temperature: <span id="currentTarget">--</span> C <span id="smoothingIndicator" style="display: none; color: var(--success-color);">(smoothed)</span></p>
+            <p>Furnace Status: <span id="furnaceStatus">--</span></p>
+            <p>Temperature Resolution: <span id="resolutionDisplay">--</span> point(s) per hour</p>
+        </div>
+		
+        <div class="chart-container">
+            <h2 style="margin-bottom: 6px; font-size: 1.2em;">Temperature Schedule Chart</h2>
+            <p style="margin-bottom: 8px; font-size: 1em;">Tap on the chart to set temperature for a specific time point, or drag across to set multiple points.</p>
+            <canvas id="tempChart"></canvas>
+            <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: flex-end; width: 100%; margin-top: 0;">
+                <div class="chart-legend" style="display: flex; gap: 16px; align-items: center;">
+                    <div class="legend-item" style="display: flex; align-items: center; gap: 4px;">
+                        <div class="legend-color" style="background-color: rgb(75, 192, 192);"></div>
+                        <span>Target Temperature</span>
+                    </div>
+                    <div class="legend-item" style="display: flex; align-items: center; gap: 4px;">
+                        <div class="legend-color" style="background-color: rgb(255, 99, 132);"></div>
+                        <span>Actual Temperature</span>
+                    </div>
+                </div>
+                <div class="chart-controls" style="display: flex; gap: 6px; align-items: center;">
+                    <button id="zoomOutBtn" class="chart-control-btn">Zoom Out (-)</button>
+                    <button id="resetZoomBtn" class="chart-control-btn">Reset Zoom</button>
+                    <button id="zoomInBtn" class="chart-control-btn">Zoom In (+)</button>
+                    <button id="refreshLogBtn" class="chart-control-btn">Refresh Log</button>
+                    <button id="fullscreenChartBtn" class="chart-control-btn" title="Fullscreen Chart">Fullscreen</button>
+                    <button id="saveProgramBtn" class="chart-control-btn">Save Program</button>
+                </div>
+            </div>
+        </div>
+            
+        <!-- Manual Time/Temperature Setting -->
+        <div class="manual-time-setting">
+            <h3>Set Specific Time Temperature</h3>
+            <div class="time-temp-controls">
+                <div class="control-group">
+                    <label>Time:</label>
+                    <select id="manualHour">
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                    <span>:</span>
+                    <select id="manualMinute">
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Temp:</label>
+                    <input type="number" id="manualTemp" min="0" max="2000" step="10" value="0">
+                    <span>C</span>
+                </div>
+                <button id="setManualTempBtn" class="btn-primary">Set</button>
+            </div>
+        </div>
+        
+        <div class="range-controls" style="margin-bottom: 30px;">
+            <h3>Temperature Range Settings</h3>
+            <p>Set the minimum and maximum temperature range:</p>
+            <div class="range-inputs">
+                <div>
+                    <label for="minTemp">Minimum Temperature (C):</label>
+                    <input type="number" id="minTemp" step="50" min="0" max="1000">
+                </div>
+                <div>
+                    <label for="maxTemp">Maximum Temperature (C):</label>
+                    <input type="number" id="maxTemp" step="50" min="100" max="2000">
+                </div>
+            </div>
+                        <div style="margin-top: 15px; text-align: center;">
+                <button id="updateRangeBtn" class="btn-primary">Update Temperature Range</button>
+            </div>
+        </div>
+        
+        <div class="system-status">
+            <h2>System Status</h2>
+            <p>WiFi Connection: <span id="wifiStatus">--</span></p>
+            <p>Time Synchronization: <span id="timeStatus">--</span></p>
+            <p>Thermocouple Sensor: <span id="sensorStatus">--</span></p>
+            <p>Temperature Logging: Every <span id="loggingFrequency">--</span></p>
+        </div>
+        
+        <div style="margin: 30px 0 0 0;"></div>
+        
+        <div class="schedule-container" style="width: 100%; box-sizing: border-box; margin-top: 0;">
+            <h2 style="margin-top: 0;">Heating Schedule</h2>
+            <p style="margin-top: 0.5em;">Set temperature targets for specific times. The furnace will maintain each temperature until the next scheduled time.</p>
+            <div class="schedule-header">
+                    <h3>Schedule Entries</h3>
+                    <button id="addScheduleBtn" class="btn-primary">Add Schedule Entry</button>
+                </div>
+                <div id="scheduleEntries" class="schedule-entries">
+                    <!-- Schedule entries will be added here dynamically -->
+                </div>
+                <div class="schedule-actions">
+                    <button id="applyScheduleBtn" class="btn-success">Apply Schedule to Chart</button>
+                    <button id="clearScheduleBtn" class="btn-danger">Clear Schedule</button>
+                </div>
+                <div class="schedule-example">
+                    <h4>Example:</h4>
+                    <p>09:00 - 450C > Furnace heats to 450C and maintains until next entry</p>
+                    <p>12:00 - 600C with ramp of 350 over 3 hours > Furnace heats to 600C then increases 350c over the three hours. 1pm = 716c, 2pm = 833c, 3pm = 950c</p>
+                    <p>18:00 - 0C > Furnace turns off and cools down</p>
+                </div>
+            </div>
+        </section>
+        
+        <div id="tooltip" class="tooltip"></div>
+    </div>
+
+    <!-- Save Program Modal -->
+    <div id="programModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" id="closeProgramModal">&times;</span>
+            <h2 class="modal-title">Save Program</h2>
+            <div class="form-group">
+                <label for="programName">Program Name:</label>
+                <input type="text" id="programName" placeholder="Enter program name">
+            </div>
+            <div class="form-group">
+                <label for="programIndex">Save to slot:</label>
+                <select id="programIndex">
+                    <option value="0">Slot 1 (Default)</option>
+                    <option value="1">Slot 2</option>
+                    <option value="2">Slot 3</option>
+                    <option value="3">Slot 4</option>
+                    <option value="4">Slot 5</option>
+					<option value="5">Slot 6</option>
+					<option value="6">Slot 7</option>
+					<option value="7">Slot 8</option>
+					<option value="8">Slot 9</option>
+					<option value="9">Slot 10</option>
+                </select>
+            </div>
+            <div class="form-buttons">
+                <button id="cancelProgramBtn">Cancel</button>
+                <button id="saveProgramConfirmBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Custom tooltip styling */
+        .chartjs-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8) !important;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            pointer-events: none;
+            z-index: 1000;
+            transition: all 0.1s ease;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 280px;
+            backdrop-filter: blur(2px);
+        }
+        
+        .chartjs-tooltip table {
+            margin: 0;
+            border-collapse: collapse;
+        }
+        
+        .chartjs-tooltip table tr {
+            background: transparent !important;
+        }
+        
+        .chartjs-tooltip table tr:first-child td {
+            padding-bottom: 5px;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .chartjs-tooltip table tr:not(:first-child) td {
+            padding: 2px 0;
+        }
+        
+        .chartjs-tooltip table td {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .chartjs-tooltip .tooltip-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        /* Dark theme support */
+        [data-theme="dark"] .chartjs-tooltip {
+            background: rgba(40, 40, 40, 0.95) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+
+    <script>
+        let tempChart, currentMinTemp = 0, currentMaxTemp = 1200;
+
+        // Show error message in the UI (copied from filemanager.html)
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+let pendingUpdates = {};
+let tooltip = document.getElementById('tooltip');
+let useManualTime = false, isDarkMode = false, updateTimeout = null;
+let tempLogData = null;
+let statusUpdateInterval = null;
+let today = new Date(); // Global today variable for chart functionality
+let isSendingUpdates = false;
+let temperatureSmoothingEnabled = true; // Default to match backend
+let smoothedTargetTemp = 0;
+let temperatureIncrement = 10; // Default, will be updated from API
+let tempResolution = 4; // Default, will be updated from API
+let maxTempPoints = 24 * (tempResolution / 1); // Default, will be updated based on resolution
+
+function capMaxTempPoints() {
+    // 12 points/hour * 24 hours = 288
+    if (maxTempPoints > 288) maxTempPoints = 288;
+}
+
+            // Theme handling logic is centralized in theme.js
+            
+
+        // Setup collapsible sections
+        function setupCollapsibles() {
+            document.querySelectorAll('.collapsible').forEach(coll => {
+                coll.addEventListener("click", function() {
+                    this.classList.toggle("active");
+                    const content = this.nextElementSibling;
+                    const iconSpan = this.querySelector('.icon');
+                    
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                        iconSpan.classList.remove('icon-up');
+                        iconSpan.classList.add('icon-down');
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + "px";
+                        iconSpan.classList.remove('icon-down');
+                        iconSpan.classList.add('icon-up');
+                    }
+                });
+            });
+        }
+        
+        // Temperature smoothing functions are in app.js
+        
+        // Fetch current status with partial updates
+        // Lite status update for frequently changing data only
+        function fetchStatusLite() {
+            fetch('/api/status/lite')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update only the essential frequently changing data
+                    document.getElementById('currentTemp').textContent = data.currentTemp.toFixed(1);
+                    document.getElementById('currentTime').textContent = data.currentTime;
+                    
+                    // Update target temperature display with smoothing support
+                    const targetTempDisplay = document.getElementById('currentTarget');
+                    if (data.temperatureSmoothingEnabled && data.hasOwnProperty('smoothedTargetTemp')) {
+                        targetTempDisplay.textContent = data.smoothedTargetTemp.toFixed(1);
+                        document.getElementById('smoothingIndicator').style.display = 'inline';
+                    } else {
+                        targetTempDisplay.textContent = data.targetTemp.toFixed(1);
+                        document.getElementById('smoothingIndicator').style.display = 'none';
+                    }
+                    
+                    // Update furnace status
+                    let furnaceStatusEl = document.getElementById('furnaceStatus');
+                    if (data.systemEnabled) {
+                        furnaceStatusEl.textContent = data.furnaceStatus ? "ON" : "OFF";
+                        furnaceStatusEl.className = data.furnaceStatus ? "warning" : "success";
+                    } else {
+                        furnaceStatusEl.textContent = "OFF (Manual)";
+                        furnaceStatusEl.className = "success";
+                    }
+                })
+                .catch(error => {
+                    // Fall back to full status update if lite fails
+                    console.warn('Lite status failed, falling back to full status');
+                    fetchStatus(false);
+                });
+        }
+
+        function fetchStatus(fullUpdate = false) {
+            fetch('/api/status')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update error messages
+                    let errorDiv = document.getElementById('errorMessages');
+                    errorDiv.innerHTML = '';
+                    
+                    if (data.thermocoupleError) {
+                        errorDiv.innerHTML = '<p class="error">ERROR: Temperature sensor failure detected!</p>';
+                    }
+                    
+                    // Update temperature and status - only these need frequent updates
+                    document.getElementById('currentTemp').textContent = data.thermocoupleError ? 'ERROR' : data.currentTemp.toFixed(1);
+                    document.getElementById('currentTime').textContent = data.currentTime;
+                    
+                    // Show/hide WiFi button based on connection status
+                    const wifiButton = document.getElementById('wifiButton');
+                    if (wifiButton) {
+                        // Check if wifi object exists and has connected property
+                        const isWifiConnected = data.wifi && data.wifi.connected;
+                        wifiButton.style.display = isWifiConnected ? 'none' : 'inline-block';
+                    }
+
+                    // Update temperature increment if available
+                    if (data.hasOwnProperty('temperatureIncrement')) {
+                        temperatureIncrement = data.temperatureIncrement;
+                    }
+
+                    // Update temperature resolution if available
+                    if (data.hasOwnProperty('tempResolution') && data.hasOwnProperty('maxTempPoints')) {
+                        const prevResolution = tempResolution;
+                        tempResolution = data.tempResolution;
+                        maxTempPoints = data.maxTempPoints;
+                        
+                        
+                        // Update resolution display
+                        const resolutionElement = document.getElementById('resolutionDisplay');
+                        if (resolutionElement) {
+                            resolutionElement.textContent = tempResolution;
+                        } else {
+                        }
+                        
+                        // If resolution changed, we need to recreate UI elements
+                        if (fullUpdate && prevResolution !== tempResolution) {
+                            setupManualTimeSetter();
+                            if (tempChart) {
+                                initChart(data.targetTemps);
+                            }
+                        }
+                    }
+
+                    // Update target temperature - now handling smoothed value
+                    if (data.hasOwnProperty('smoothedTargetTemp')) {
+                        smoothedTargetTemp = data.smoothedTargetTemp;
+                    }
+
+                    const targetTempDisplay = document.getElementById('currentTarget');
+                    const currentIndex = data.hasOwnProperty('currentTempIndex') ? data.currentTempIndex : 0;
+                    
+                    if (data.temperatureSmoothingEnabled) {
+                        targetTempDisplay.textContent = smoothedTargetTemp.toFixed(1);
+                        document.getElementById('smoothingIndicator').style.display = 'inline';
+                    } else {
+                        if (currentIndex >= 0 && currentIndex < data.targetTemps.length) {
+                            targetTempDisplay.textContent = data.targetTemps[currentIndex].toFixed(1);
+                        } else {
+                            targetTempDisplay.textContent = '--';
+                        }
+                        document.getElementById('smoothingIndicator').style.display = 'none';
+                    }
+
+                    let furnaceStatusEl = document.getElementById('furnaceStatus');
+                    if (data.systemEnabled) {
+                        furnaceStatusEl.textContent = data.furnaceStatus ? "ON" : "OFF";
+                        furnaceStatusEl.className = data.furnaceStatus ? "warning" : "success";
+                    } else {
+                        furnaceStatusEl.textContent = "OFF (Manual)";
+                        furnaceStatusEl.className = "success";
+                    }
+
+                    // Only update these items for full updates or if they've changed
+                    if (fullUpdate) {
+                        // Update system status indicators
+                        document.getElementById('wifiStatus').textContent = data.wifiConnected ? "Connected" : "Disconnected";
+                        document.getElementById('wifiStatus').className = data.wifiConnected ? "success" : "error";
+                        
+                        let timeStatusEl = document.getElementById('timeStatus');
+                        if (data.useManualTime) {
+                            timeStatusEl.textContent = "Manual Time Mode";
+                            timeStatusEl.className = "warning";
+                        } else {
+                            timeStatusEl.textContent = data.timeIsSynchronized ? "Synchronized" : "Not Synchronized";
+                            timeStatusEl.className = data.timeIsSynchronized ? "success" : "warning";
+                        }
+                        
+                        let sensorStatusEl = document.getElementById('sensorStatus');
+                        sensorStatusEl.textContent = data.thermocoupleError ? "Error" : "OK";
+                        sensorStatusEl.className = data.thermocoupleError ? "error" : "success";
+                        
+                        // System and smoothing button states are managed in app.js
+                        
+                        // Update temperature range values
+                        currentMinTemp = data.minTemp;
+                        currentMaxTemp = data.maxTemp;
+                        document.getElementById('minTemp').value = currentMinTemp;
+                        document.getElementById('maxTemp').value = currentMaxTemp;
+                        
+                        // Update logging frequency and refresh interval
+                        if (typeof data.loggingFrequencySeconds === 'number') {
+                            let freqText = '';
+                            if (data.loggingFrequencySeconds < 60) {
+                                freqText = `${data.loggingFrequencySeconds} second${data.loggingFrequencySeconds === 1 ? '' : 's'}`;
+                            } else {
+                                let mins = data.loggingFrequencySeconds / 60;
+                                freqText = mins % 1 === 0 ? `${mins} minutes` : `${mins.toFixed(1)} minutes`;
+                            }
+                            document.getElementById('loggingFrequency').textContent = freqText;
+
+                            // Dynamically update the temp log refresh interval if changed
+                            if (lastLoggingFrequencySeconds !== data.loggingFrequencySeconds) {
+                                lastLoggingFrequencySeconds = data.loggingFrequencySeconds;
+                                updateTempLogInterval(data.loggingFrequencySeconds);
+                            }
+                        } else {
+                            document.getElementById('loggingFrequency').textContent = '--';
+                        }
+                        
+                        // Update chart with current temperature data if it has changed
+                        initChart(data.targetTemps);
+                        
+                        // Update active profile in selector
+                        if (data.activeProfile >= 0) {
+                            const profileSelector = document.getElementById('profileSelector');
+                            if (profileSelector.value != data.activeProfile) {
+                                profileSelector.value = data.activeProfile;
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('errorMessages').innerHTML = 
+                        '<p class="error">Cannot connect to the controller. Check your connection.</p>';
+                });
+        }
+
+
+
+        function updateTemperatureRange() {
+            const minTemp = parseInt(document.getElementById('minTemp').value);
+            const maxTemp = parseInt(document.getElementById('maxTemp').value);
+            
+            // Validate inputs
+            if (isNaN(minTemp) || isNaN(maxTemp)) {
+                showNotification('Please enter valid temperature values', 'error');
+                return;
+            }
+            
+            if (minTemp >= maxTemp) {
+                showNotification('Minimum temperature must be less than maximum temperature', 'error');
+                return;
+            }
+            
+            // Round to nearest 50
+            const roundedMin = Math.round(minTemp / 50) * 50;
+            const roundedMax = Math.round(maxTemp / 50) * 50;
+            
+            fetch('/api/updateRange', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({min: roundedMin, max: roundedMax}),
+            })
+            .then(() => fetchStatus(true))
+            .catch(error => {
+                showNotification('Failed to update temperature range. Please try again.', 'error');
+            });
+        }
+
+        // Initialize temperature chart
+        function initChart(tempData) {
+            try {
+                capMaxTempPoints();
+                
+                if (!tempData || !Array.isArray(tempData)) {
+                    const errorMsg = 'Invalid temperature data for chart initialization: ' + 
+                                   (tempData === null ? 'null' : typeof tempData);
+                    showError('Invalid temperature data: ' + (tempData === null ? 'null' : typeof tempData));
+                    return;
+                }
+                
+                if (tempData.length === 0) {
+                    showError('No temperature data available');
+                    return;
+                }
+
+                const chartElement = document.getElementById('tempChart');
+                if (!chartElement) {
+                    return;
+                }
+                
+                const container = chartElement.parentElement;
+                
+                // Ensure container has proper dimensions - fix width issue
+                container.style.position = 'relative';
+                container.style.width = '100%';
+                container.style.height = '660px';
+                container.style.overflow = 'visible';
+                container.style.maxWidth = '100%';
+                container.style.margin = '0 auto';
+                
+                // Set explicit dimensions on canvas
+                chartElement.style.display = 'block';
+                chartElement.style.width = '100%';
+                chartElement.style.height = '600px';
+                chartElement.style.maxHeight = '600px';
+                chartElement.width = Math.min(container.offsetWidth, window.innerWidth - 80) * (window.devicePixelRatio || 1);
+                chartElement.height = 600 * (window.devicePixelRatio || 1);
+                
+                // Get context
+                const ctx = chartElement.getContext('2d');
+            
+                // Generate time labels based on resolution
+                const timeLabels = [];
+                const minutesPerPoint = 60 / tempResolution;
+                today = new Date(); // Update the global today variable
+                today.setHours(0, 0, 0, 0); // Start of today
+                
+                // Set chart end to 23:00 (not 24:00)
+                const endOfDay = new Date(today);
+                endOfDay.setHours(24, 0, 0, 0); // midnight of the next day
+
+                for (let i = 0; i < maxTempPoints; i++) {
+                    const totalMinutes = i * minutesPerPoint;
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
+                    // Create Date object for each time point using today's date
+                    const timeValue = new Date(today);
+                    timeValue.setHours(hours, minutes, 0, 0);
+                    timeLabels.push(timeValue);
+                }
+
+                // Prepare target temperature data
+                const targetTempData = tempData.slice(0, maxTempPoints).map((temp, index) => ({
+                    x: timeLabels[index],
+                    y: temp
+                }));
+
+                // Prepare actual temperature data if available
+                let actualTempData = [];
+                if (window.tempLogData && window.tempLogData.actualTemps && window.tempLogData.actualTemps.length > 0) {
+                    // Use precise timestamps for actual temperature data plotting
+                    actualTempData = window.tempLogData.actualTemps.map((temp, index) => {
+                        let timeValue = new Date();
+                        let preciseTimestamp = null;
+                        
+                        if (window.tempLogData.timestamps && window.tempLogData.timestamps[index]) {
+                            const timestamp = window.tempLogData.timestamps[index];
+                            preciseTimestamp = timestamp;
+                            
+                            // Extract time part from timestamp (assuming format: "YYYY-MM-DD HH:MM:SS")
+                            const timePart = timestamp.split(' ')[1];
+                            if (timePart) {
+                                const [hours, minutes, seconds] = timePart.split(':').map(Number);
+                                // Create a date object for today with the logged time
+                                timeValue = new Date();
+                                timeValue.setHours(hours, minutes, seconds || 0, 0);
+                            }
+                        }
+                        
+                        return {
+                            x: timeValue,
+                            y: temp,
+                            timestamp: preciseTimestamp,
+                            furnaceOn: window.tempLogData.furnaceOn ? window.tempLogData.furnaceOn[index] : false
+                        };
+                    });
+                } else {
+                }
+
+                // Destroy existing chart if it exists - fix destroy error
+                if (window.tempChart && typeof window.tempChart.destroy === 'function') {
+                    try {
+                        window.tempChart.destroy();
+                    } catch (e) { }
+                }
+                window.tempChart = null;
+
+                // Create new chart instance with time scale configuration
+                const chartOptions = {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                stepSize: 1,
+                                displayFormats: {
+                                    minute: 'HH:mm',
+                                    hour: 'HH'
+                                },
+                                tooltipFormat: 'HH:mm',
+                                min: today,
+                                max: endOfDay
+                            },
+                            min: today,
+                            max: endOfDay,
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                autoSkip: true,
+                                maxTicksLimit: 24,
+                                source: 'auto'
+                            },
+                            adapters: {
+                                date: {}
+                            }
+                        },
+                        y: {}
+                    },
+                    animation: {
+                        duration: 0
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'xy',
+                        intersect: false
+                    },
+                    plugins: {
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'xy',
+                                onPanComplete: function({ chart }) {
+                                    chart.update('none');
+                                }
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: true,
+                                    speed: 0.1,
+                                    mode: 'xy'
+                                },
+                                pinch: {
+                                    enabled: true,
+                                    mode: 'xy'
+                                },
+                                mode: 'xy',
+                                onZoomComplete: function({ chart }) {
+                                    chart.update('none');
+                                }
+                            }
+                        }
+                    }
+                };
+
+                window.tempChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        // IMPORTANT: Do NOT set a root-level labels array here. Chart.js will use category scale if labels is present.
+                        datasets: [
+                            {
+                                label: 'Target Temperature (C)',
+                                data: targetTempData, // x values are Date objects, ensures time scale works properly
+                                borderColor: 'rgb(75, 192, 192)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.1,
+                                pointRadius: 4,
+                                pointHoverRadius: 6
+                            },
+                            {
+                                label: 'Actual Temperature (C)',
+                                data: actualTempData, // x values are Date objects, ensures time scale works properly
+                                borderColor: 'rgb(255, 99, 132)',
+                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.1,
+                                pointRadius: 2,
+                                pointHoverRadius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 0
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'hour',
+                                    stepSize: 1,
+                                    displayFormats: {
+                                        minute: 'HH:mm',
+                                        hour: 'HH'
+                                    },
+                                    tooltipFormat: 'HH:mm',
+                                    min: today,
+                                    max: endOfDay
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Time'
+                                },
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                },
+                                ticks: {
+                                    maxTicksLimit: 50,
+                                    autoSkip: false,
+                                    maxRotation: 0,
+                                    source: 'auto'
+                                },
+                                adapters: {
+                                    date: {}
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Temperature (C)'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + ' C';
+                                    }
+                                },
+                                min: currentMinTemp,
+                                max: currentMaxTemp,
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    boxWidth: 12,
+                                    padding: 20
+                                }
+                            },
+                            zoom: {
+                                zoom: {
+                                    wheel: {
+                                        enabled: true,
+                                        speed: 0.1, // Slower zoom for better control
+                                        modifierKey: null
+                                    },
+                                    pinch: {
+                                        enabled: true,
+                                        speed: 0.1 // Slower pinch zoom for better control
+                                    },
+                                    mode: 'xy',
+                                    onZoomStart: function({ chart }) {
+                                        // Store initial bounds when zoom starts
+                                        chart._initialBounds = {
+                                            x: { min: chart.scales.x.min, max: chart.scales.x.max },
+                                            y: { min: chart.scales.y.min, max: chart.scales.y.max }
+                                        };
+                                    },
+                                    onZoomComplete: function({ chart }) {
+                                        const xScale = chart.scales.x;
+                                        const yScale = chart.scales.y;
+                                        const fullDayStart = today.getTime();
+                                        const fullDayEnd = endOfDay.getTime();
+                                        const currentXRange = xScale.max - xScale.min;
+                                        
+                                        // 1. Handle X-axis bounds
+                                        let newXMin = xScale.min;
+                                        let newXMax = xScale.max;
+                                        let xRangeChanged = false;
+                                        
+                                        // Ensure we don't go beyond the full day
+                                        if (newXMin < fullDayStart) {
+                                            newXMin = fullDayStart;
+                                            newXMax = Math.min(fullDayEnd, newXMin + currentXRange);
+                                            xRangeChanged = true;
+                                        }
+                                        if (newXMax > fullDayEnd) {
+                                            newXMax = fullDayEnd;
+                                            newXMin = Math.max(fullDayStart, newXMax - currentXRange);
+                                            xRangeChanged = true;
+                                        }
+                                        
+                                        // 2. Handle Y-axis bounds
+                                        let newYMin = yScale.min;
+                                        let newYMax = yScale.max;
+                                        let yRangeChanged = false;
+                                        
+                                        // Ensure we stay within temperature bounds
+                                        if (newYMin < currentMinTemp) {
+                                            newYMin = currentMinTemp;
+                                            yRangeChanged = true;
+                                        }
+                                        if (newYMax > currentMaxTemp) {
+                                            newYMax = currentMaxTemp;
+                                            yRangeChanged = true;
+                                        }
+                                        
+                                        // 3. Update scales if needed
+                                        if (xRangeChanged || yRangeChanged) {
+                                            if (xRangeChanged) {
+                                                chart.zoomScale('x', { min: newXMin, max: newXMax }, 'default');
+                                            }
+                                            if (yRangeChanged) {
+                                                chart.zoomScale('y', { min: newYMin, max: newYMax }, 'default');
+                                            }
+                                            return; // Let the next animation frame handle the rest
+                                        }
+                                        
+                                        // 4. Adjust time scale based on visible range
+                                        const visibleHours = currentXRange / (60 * 60 * 1000);
+                                        const timeConfig = chart.options.scales.x.time;
+                                        const ticksConfig = chart.options.scales.x.ticks;
+                                        let intervalMinutes;
+                                        
+                                        // Choose time unit and step size based on visible range
+                                        if (visibleHours <= 0.5) { // 30 minutes or less
+                                            intervalMinutes = 1;
+                                            timeConfig.unit = 'minute';
+                                            timeConfig.stepSize = 1;
+                                            ticksConfig.maxTicksLimit = 30;
+                                        } else if (visibleHours <= 2) { // 2 hours or less
+                                            intervalMinutes = 5;
+                                            timeConfig.unit = 'minute';
+                                            timeConfig.stepSize = 5;
+                                            ticksConfig.maxTicksLimit = 24;
+                                        } else if (visibleHours <= 6) { // 6 hours or less
+                                            intervalMinutes = 15;
+                                            timeConfig.unit = 'minute';
+                                            timeConfig.stepSize = 15;
+                                            ticksConfig.maxTicksLimit = 24;
+                                        } else if (visibleHours <= 12) { // 12 hours or less
+                                            intervalMinutes = 30;
+                                            timeConfig.unit = 'minute';
+                                            timeConfig.stepSize = 30;
+                                            ticksConfig.maxTicksLimit = 24;
+                                        } else { // More than 12 hours
+                                            intervalMinutes = 60;
+                                            timeConfig.unit = 'hour';
+                                            timeConfig.stepSize = 1;
+                                            ticksConfig.maxTicksLimit = 24;
+                                        }
+                                        
+                                        // 5. Snap to time intervals
+                                        const intervalMs = intervalMinutes * 60 * 1000;
+                                        const snappedMin = Math.floor(newXMin / intervalMs) * intervalMs;
+                                        const snappedMax = Math.ceil(newXMax / intervalMs) * intervalMs;
+                                        
+                                        // Only update if we need to snap
+                                        if (snappedMin !== newXMin || snappedMax !== newXMax) {
+                                            chart.zoomScale('x', { 
+                                                min: Math.max(fullDayStart, snappedMin), 
+                                                max: Math.min(fullDayEnd, snappedMax) 
+                                            }, 'default');
+                                            return; // Let the next animation frame handle the rest
+                                        }
+                                        
+                                        // 6. Handle Y-axis temperature scale
+                                        const tempRange = yScale.max - yScale.min;
+                                        const yTicksConfig = chart.options.scales.y.ticks;
+                                        
+                                        // Choose temperature step size based on visible range
+                                        let tempStepSize;
+                                        if (tempRange > 200) {
+                                            tempStepSize = 50;
+                                        } else if (tempRange > 100) {
+                                            tempStepSize = 20;
+                                        } else if (tempRange > 50) {
+                                            tempStepSize = 10;
+                                        } else if (tempRange > 25) {
+                                            tempStepSize = 5;
+                                        } else if (tempRange > 10) {
+                                            tempStepSize = 2;
+                                        } else {
+                                            tempStepSize = 1;
+                                        }
+                                        
+                                        // Align Y-axis to step boundaries
+                                        const alignedYMin = Math.floor(yScale.min / tempStepSize) * tempStepSize;
+                                        const alignedYMax = Math.ceil(yScale.max / tempStepSize) * tempStepSize;
+                                        
+                                        // Only update if alignment is needed (avoid infinite loops)
+                                        if (alignedYMin !== yScale.min || alignedYMax !== yScale.max) {
+                                            chart.zoomScale('y', { 
+                                                min: Math.max(currentMinTemp, alignedYMin), 
+                                                max: Math.min(currentMaxTemp, alignedYMax) 
+                                            }, 'default');
+                                            return; // Let the next animation frame handle the rest
+                                        }
+                                        
+                                        // Configure Y-axis ticks
+                                        yTicksConfig.stepSize = tempStepSize;
+                                        yTicksConfig.maxTicksLimit = Math.min(15, Math.ceil(tempRange / tempStepSize) + 1);
+                                        yTicksConfig.callback = function(value) {
+                                            const rounded = Math.round(value / tempStepSize) * tempStepSize;
+                                            return Math.abs(value - rounded) < 0.001 ? rounded : '';
+                                        };
+                                        
+                                        // Final update with all changes
+                                        chart.update('none');
+                                    }
+                                },
+                                pan: {
+                                    enabled: true,
+                                    mode: 'xy',
+                                    modifierKey: null, // Allow panning with mouse drag
+                                    threshold: 10, // Pixels to move before panning starts
+                                    onPanStart: function({ chart }) {
+                                        // Store initial bounds when pan starts
+                                        chart._initialBounds = {
+                                            x: { min: chart.scales.x.min, max: chart.scales.x.max },
+                                            y: { min: chart.scales.y.min, max: chart.scales.y.max }
+                                        };
+                                    },
+                                    onPanComplete: function({ chart }) {
+                                        const xScale = chart.scales.x;
+                                        const yScale = chart.scales.y;
+                                        const fullDayStart = today.getTime();
+                                        const fullDayEnd = endOfDay.getTime();
+                                        
+                                        // Handle X-axis bounds
+                                        let xRange = xScale.max - xScale.min;
+                                        let newXMin = xScale.min;
+                                        let newXMax = xScale.max;
+                                        
+                                        // If panned outside bounds, adjust back
+                                        if (newXMin < fullDayStart) {
+                                            newXMin = fullDayStart;
+                                            newXMax = Math.min(fullDayEnd, newXMin + xRange);
+                                        }
+                                        if (newXMax > fullDayEnd) {
+                                            newXMax = fullDayEnd;
+                                            newXMin = Math.max(fullDayStart, newXMax - xRange);
+                                        }
+                                        
+                                        // Handle Y-axis bounds for pan
+                                        const yScaleForPan = chart.scales.y;
+                                        let yPanRange = yScaleForPan.max - yScaleForPan.min;
+                                        let newYMin = yScaleForPan.min;
+                                        let newYMax = yScaleForPan.max;
+                                        
+                                        // Ensure we stay within temperature bounds
+                                        if (newYMin < currentMinTemp) {
+                                            newYMin = currentMinTemp;
+                                            newYMax = newYMin + yPanRange;
+                                        }
+                                        if (newYMax > currentMaxTemp) {
+                                            newYMax = currentMaxTemp;
+                                            newYMin = Math.max(currentMinTemp, newYMax - yPanRange);
+                                        }
+                                        
+                                        // Only update if we need to adjust the bounds
+                                        if (newXMin !== xScale.min || newXMax !== xScale.max || 
+                                            newYMin !== yScaleForPan.min || newYMax !== yScaleForPan.max) {
+                                            
+                                            if (newXMin !== xScale.min || newXMax !== xScale.max) {
+                                                chart.zoomScale('x', { min: newXMin, max: newXMax }, 'default');
+                                            }
+                                            if (newYMin !== yScaleForPan.min || newYMax !== yScaleForPan.max) {
+                                                chart.zoomScale('y', { min: newYMin, max: newYMax }, 'default');
+                                            }
+                                        }
+                                        
+                                        // Keep Y-axis panning within temperature bounds (using yScaleForPan from above)
+                                        if (yScaleForPan.min < currentMinTemp || yScaleForPan.max > currentMaxTemp) {
+                                            const range = yScaleForPan.max - yScaleForPan.min;
+                                            let newMin = Math.max(currentMinTemp, yScaleForPan.min);
+                                            let newMax = Math.min(currentMaxTemp, yScaleForPan.max);
+                                            
+                                            // Adjust if range would be broken
+                                            if (newMax - newMin < range) {
+                                                if (newMin === currentMinTemp) {
+                                                    newMax = Math.min(currentMaxTemp, newMin + range);
+                                                } else {
+                                                    newMin = Math.max(currentMinTemp, newMax - range);
+                                                }
+                                            }
+                                            
+                                            chart.zoomScale('y', {min: newMin, max: newMax}, 'default');
+                                        }
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                position: 'nearest',
+                                callbacks: {
+                                    title: function(context) {
+                                        if (context.length > 0) {
+                                            // For actual temperature data (index 1), use the precise timestamp if available
+                                            if (context[1] && context[1].raw && context[1].raw.timestamp) {
+                                                const timePart = context[1].raw.timestamp.split(' ')[1] || '';
+                                                return `Time: ${timePart}`;
+                                            }
+                                            // Fallback to x-axis time for target temperature
+                                            const date = new Date(context[0].parsed.x);
+                                            return `Time: ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                                        }
+                                        return '';
+                                    },
+                                    label: function(context) {
+                                        if (context.datasetIndex === 0) {
+                                            return `Target: ${context.parsed.y.toFixed(1)} C`;
+                                        } else {
+                                            const furnaceStatus = context.raw.furnaceOn ? "ON" : "OFF";
+                                            return `Actual: ${context.parsed.y.toFixed(1)} C (Furnace: ${furnaceStatus})`;
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            intersect: false
+                        },
+                        onHover: function(event, elements) {
+                            event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
+                        },
+                        onClick: function(event, elements) {
+                            // Only handle click if not dragging and no recent drag occurred
+                            if (window.tempChart.isDragging || hasDragged) {
+                                window.tempChart.isDragging = false;
+                                return;
+                            }
+                            // Only allow click to set temperature if not currently dragging
+                            if (window.tempChart.dragActive) return;
+
+                            const canvasPosition = Chart.helpers.getRelativePosition(event, window.tempChart);
+                            const dataX = window.tempChart.scales.x.getValueForPixel(canvasPosition.x);
+                            const dataY = window.tempChart.scales.y.getValueForPixel(canvasPosition.y);
+                            
+                            // Find the closest time index (snap to horizontal axis)
+                            let closestIndex = 0;
+                            let minDistance = Infinity;
+                            for (let i = 0; i < window.tempChart.data.datasets[0].data.length; i++) {
+                                const point = window.tempChart.data.datasets[0].data[i];
+                                const pointPixelX = window.tempChart.scales.x.getPixelForValue(point.x);
+                                const distance = Math.abs(canvasPosition.x - pointPixelX);
+                                if (distance < minDistance) {
+                                    minDistance = distance;
+                                    closestIndex = i;
+                                }
+                            }
+                            
+                            // Snap temperature to increment and clamp to valid range
+                            const rawTemp = Math.max(currentMinTemp, Math.min(currentMaxTemp, dataY));
+                            const snappedTemp = Math.round(rawTemp / temperatureIncrement) * temperatureIncrement;
+                            const clampedTemp = Math.max(currentMinTemp, Math.min(currentMaxTemp, snappedTemp));
+                            
+                            setTemperature(closestIndex, clampedTemp);
+                        }
+                    }
+                });
+                
+                // Reset zoom to show full day view
+                function resetZoom() {
+                    if (window.tempChart) {
+                        if (window.tempChart.resetZoom) {
+                            window.tempChart.resetZoom();
+                        }
+                        // Force update to ensure full range is shown
+                        window.tempChart.options.scales.x.min = today;
+                        window.tempChart.options.scales.x.max = endOfDay;
+                        window.tempChart.update();
+                    }
+                }
+
+                // Add event listener for reset zoom button
+                document.addEventListener('DOMContentLoaded', function() {
+                    const resetBtn = document.getElementById('resetZoomBtn');
+                    if (resetBtn) {
+                        resetBtn.addEventListener('click', resetZoom);
+                    }
+                });
+
+                // Helper function to check if chart is in panning mode (zoomed)
+                function isPanningEnabled() {
+                    if (!window.tempChart) return false;
+                    
+                    // Check if chart has been zoomed using the zoom plugin
+                    const xScale = window.tempChart.scales.x;
+                    const fullDayStart = today;
+                    const fullDayEnd = endOfDay;
+                    
+                    // Check if the current view is different from the full day view
+                    const isXZoomed = Math.abs(xScale.min - fullDayStart) > 1000 || Math.abs(xScale.max - fullDayEnd) > 1000;
+                    
+                    // Check if chart has been zoomed on Y-axis (temperature)
+                    const yScale = window.tempChart.scales.y;
+                    const isYZoomed = Math.abs(yScale.min - currentMinTemp) > 5 || Math.abs(yScale.max - currentMaxTemp) > 5;
+                    
+                    // Return true if either axis is zoomed
+                    return isXZoomed || isYZoomed;
+                }
+                
+                // Utility: Returns true if the chart is fully zoomed out (default view)
+                function isChartFullyZoomedOut() {
+                    if (!window.tempChart || !window.tempChart.scales || !window.tempChart.scales.x) return true;
+                    const xScale = window.tempChart.scales.x;
+                    // Store initial min/max on chart creation for reliable comparison
+                    if (typeof window.tempChart._initialXMin === 'undefined') {
+                        window.tempChart._initialXMin = xScale.min;
+                        window.tempChart._initialXMax = xScale.max;
+                    }
+                    return xScale.min === window.tempChart._initialXMin && xScale.max === window.tempChart._initialXMax;
+                }
+                
+                // Enhanced drag functionality for single temperature point setting
+                let isDragging = false;
+                let dragStartX = null;
+                let dragStartY = null;
+                let dragPointIndex = -1;
+                let singlePointDrag = false;
+                let hasDragged = false; // Track if actual dragging occurred
+                const dragThreshold = 5; // pixels
+                
+                chartElement.addEventListener('mousedown', function(event) {
+                    if (event.ctrlKey) return; // Don't interfere with pan
+                    
+                    isDragging = false;
+                    singlePointDrag = false;
+                    dragStartX = event.offsetX;
+                    dragStartY = event.offsetY;
+                    dragPointIndex = -1;
+                    hasDragged = false;
+                    window.tempChart.isDragging = false;
+                    
+                    // Find the closest point to start dragging
+                    const canvasPosition = Chart.helpers.getRelativePosition(event, window.tempChart);
+                    let closestDistance = Infinity;
+                    let closestPointIndex = -1;
+                    
+                    // Check each temperature point for proximity
+                    for (let i = 0; i < window.tempChart.data.datasets[0].data.length; i++) {
+                        const point = window.tempChart.data.datasets[0].data[i];
+                        const pointPixelX = window.tempChart.scales.x.getPixelForValue(point.x);
+                        const pointPixelY = window.tempChart.scales.y.getPixelForValue(point.y);
+                        
+                        // Check if mouse is within vertical line of this point (anywhere above/below)
+                        const horizontalDistance = Math.abs(canvasPosition.x - pointPixelX);
+                        
+                        // Allow dragging from anywhere along the vertical axis of a temperature point
+                        if (horizontalDistance <= 15) { // 15px horizontal tolerance
+                            // Calculate vertical distance for sorting (closer points get priority)
+                            const verticalDistance = Math.abs(canvasPosition.y - pointPixelY);
+                            const totalDistance = horizontalDistance + (verticalDistance * 0.1); // Prioritize horizontal proximity
+                            
+                            if (totalDistance < closestDistance) {
+                                closestDistance = totalDistance;
+                                closestPointIndex = i;
+                            }
+                        }
+                    }
+                    
+                    // Only allow drag if chart is fully zoomed out and close to a point
+                    if (isChartFullyZoomedOut() && closestPointIndex !== -1) {
+    // Disable chart panning while dragging
+    if (window.tempChart.options.plugins && window.tempChart.options.plugins.zoom) {
+        window.tempChart.options.plugins.zoom.pan.enabled = false;
+        window.tempChart.update('none');
+    }
+                        dragPointIndex = closestPointIndex;
+                        singlePointDrag = true;
+                        
+                        // Change cursor to indicate drag mode
+                        event.target.style.cursor = 'ns-resize';
+                    }
+                });
+                
+                chartElement.addEventListener('mousemove', function(event) {
+                    // Handle hover cursor changes when not dragging
+                    if (!isDragging && dragStartX === null) {
+                        const canvasPosition = Chart.helpers.getRelativePosition(event, window.tempChart);
+                        let minDistance = Infinity;
+                        let closestPointIndex = -1;
+                        
+                        // Check if hovering over a target temperature point's vertical axis
+                        for (let i = 0; i < window.tempChart.data.datasets[0].data.length; i++) {
+                            const point = window.tempChart.data.datasets[0].data[i];
+                            const pointPixelX = window.tempChart.scales.x.getPixelForValue(point.x);
+                            const pointPixelY = window.tempChart.scales.y.getPixelForValue(point.y);
+                            
+                            // Check if mouse is within vertical line of this point (anywhere above/below)
+                            const horizontalDistance = Math.abs(canvasPosition.x - pointPixelX);
+                            
+                            // Allow hover detection from anywhere along the vertical axis
+                            if (horizontalDistance <= 15) { // 15px horizontal tolerance
+                                const verticalDistance = Math.abs(canvasPosition.y - pointPixelY);
+                                const totalDistance = horizontalDistance + (verticalDistance * 0.1);
+                                
+                                if (totalDistance < minDistance) {
+                                    minDistance = totalDistance;
+                                    closestPointIndex = i;
+                                }
+                            }
+                        }
+                        
+                        // Change cursor when hovering over draggable points' vertical axis
+                        if (closestPointIndex !== -1) {
+                            chartElement.style.cursor = 'ns-resize';
+                        } else {
+                            chartElement.style.cursor = 'default';
+                        }
+                        return;
+                    }
+                    
+                    // Handle actual dragging
+                    if (dragStartX === null || dragStartY === null) return;
+                    if (event.ctrlKey) return; // Don't interfere with pan
+                    if (!isChartFullyZoomedOut()) return; // Only allow drag when fully zoomed out
+                    
+                    const deltaX = Math.abs(event.offsetX - dragStartX);
+                    const deltaY = Math.abs(event.offsetY - dragStartY);
+                    
+                    if (!isDragging && (deltaX > dragThreshold || deltaY > dragThreshold) && dragPointIndex >= 0) {
+                        isDragging = true;
+                        hasDragged = true;
+                        window.tempChart.isDragging = true;
+                        
+                        if (singlePointDrag) {
+                            chartElement.style.cursor = 'ns-resize';
+                        } else {
+                            chartElement.style.cursor = 'grabbing';
+                        }
+                    }
+                    
+                    if (isDragging && dragPointIndex >= 0) {
+                        // Get current mouse position relative to chart
+                        const canvasPosition = Chart.helpers.getRelativePosition(event, window.tempChart);
+                        const dataY = window.tempChart.scales.y.getValueForPixel(canvasPosition.y);
+                        
+                        // Snap temperature to increment and clamp to valid range
+                        const rawTemp = Math.max(currentMinTemp, Math.min(currentMaxTemp, dataY));
+                        const snappedTemp = Math.round(rawTemp / temperatureIncrement) * temperatureIncrement;
+                        const clampedTemp = Math.max(currentMinTemp, Math.min(currentMaxTemp, snappedTemp));
+                        
+                        if (singlePointDrag) {
+                            // Update only the single point being dragged
+                            if (window.tempChart.data.datasets[0].data[dragPointIndex].y !== clampedTemp) {
+                                window.tempChart.data.datasets[0].data[dragPointIndex].y = clampedTemp;
+                                
+                                window.tempChart.update('none');
+                            }
+                        } else {
+                            // Original multi-point drag behavior
+                            if (window.tempChart.data.datasets[0].data[dragPointIndex].y !== clampedTemp) {
+                                window.tempChart.data.datasets[0].data[dragPointIndex].y = clampedTemp;
+                                window.tempChart.update('none');
+                            }
+                        }
+                    }
+                });
+                
+                chartElement.addEventListener('mouseup', function(event) {
+    // Re-enable chart panning after drag
+    if (window.tempChart.options.plugins && window.tempChart.options.plugins.zoom) {
+        window.tempChart.options.plugins.zoom.pan.enabled = true;
+        window.tempChart.update('none');
+    }
+                    const wasDragging = isDragging && hasDragged;
+                    
+                    if (wasDragging && dragPointIndex >= 0) {
+                        // Final temperature update and save to server
+                        const canvasPosition = Chart.helpers.getRelativePosition(event, window.tempChart);
+                        const dataY = window.tempChart.scales.y.getValueForPixel(canvasPosition.y);
+                        
+                        // Snap temperature to increment and clamp to valid range
+                        const rawTemp = Math.max(currentMinTemp, Math.min(currentMaxTemp, dataY));
+                        const snappedTemp = Math.round(rawTemp / temperatureIncrement) * temperatureIncrement;
+                        const clampedTemp = Math.max(currentMinTemp, Math.min(currentMaxTemp, snappedTemp));
+                        
+                        setTemperature(dragPointIndex, clampedTemp);
+                    }
+                    
+                    // Reset drag state immediately
+                    isDragging = false;
+                    singlePointDrag = false;
+                    dragStartX = null;
+                    dragStartY = null;
+                    dragPointIndex = -1;
+                    chartElement.style.cursor = 'default';
+                    
+                    // Only block clicks if we actually dragged
+                    if (wasDragging) {
+                        window.tempChart.isDragging = true; // Block clicks immediately
+                        setTimeout(() => {
+                            if (window.tempChart) {
+                                window.tempChart.isDragging = false;
+                            }
+                            hasDragged = false; // Allow clicks again after delay
+                        }, 200); // Delay only when we actually dragged
+                    } else {
+                        // No dragging occurred, allow clicks immediately
+                        window.tempChart.isDragging = false;
+                        hasDragged = false;
+                    }
+                });
+                
+                chartElement.addEventListener('mouseleave', function() {
+                    // Reset drag state if mouse leaves chart area
+                    isDragging = false;
+                    dragStartX = null;
+                    dragStartY = null;
+                    dragPointIndex = -1;
+                    hasDragged = false;
+                    chartElement.style.cursor = 'default';
+                    if (window.tempChart) {
+                        window.tempChart.isDragging = false;
+                    }
+                });
+                
+                // Set up zoom and pan button handlers
+                document.getElementById('zoomOutBtn').addEventListener('click', function() {
+                    if (window.tempChart && typeof window.tempChart.zoom === 'function') {
+                        window.tempChart.zoom(0.8);
+                    }
+                });
+                
+                document.getElementById('resetZoomBtn').addEventListener('click', function() {
+                    if (window.tempChart && typeof window.tempChart.resetZoom === 'function') {
+                        window.tempChart.resetZoom();
+                    }
+                });
+                
+                document.getElementById('zoomInBtn').addEventListener('click', function() {
+                    if (window.tempChart && typeof window.tempChart.zoom === 'function') {
+                        const chart = window.tempChart;
+                        const xScale = chart.scales.x;
+                        const yScale = chart.scales.y;
+                        
+                        // Calculate zoom factor (zoom in by 50%)
+                        const zoomFactor = 0.5;
+
+                        // Get current range
+                        const xRange = xScale.max - xScale.min;
+                        const yRange = yScale.max - yScale.min;
+
+                        // Calculate new range (smaller = zoomed in)
+                        const newXRange = xRange * zoomFactor;
+                        const newYRange = yRange * zoomFactor;
+
+                        // Set minimum zoom limits (don't zoom in too much)
+                        const minTimeRange = 30 * 60 * 1000; // 30 minutes minimum
+                        const minTempRange = 50; // 50°C minimum range
+
+                        if (newXRange >= minTimeRange && newYRange >= minTempRange) {
+                            let xCenter = (xScale.max + xScale.min) / 2;
+                            let yCenter = (yScale.max + yScale.min) / 2;
+
+                            // Edge-aware zoom: snap to left/right edge if mouse is near
+                            if (window.lastZoomMouseEvent && chart.canvas) {
+                                const rect = chart.canvas.getBoundingClientRect();
+                                const mouseX = window.lastZoomMouseEvent.clientX - rect.left;
+                                const leftEdge = 0;
+                                const rightEdge = rect.width;
+                                const edgeThreshold = 40; // px from edge to snap
+                                // Get value for mouse position
+                                const dataX = xScale.getValueForPixel(mouseX);
+
+                                if (mouseX - leftEdge < edgeThreshold) {
+                                    // Snap zoom center to min x (start of chart)
+                                    xCenter = xScale.min;
+                                } else if (rightEdge - mouseX < edgeThreshold) {
+                                    // Snap zoom center to max x (end of chart)
+                                    xCenter = xScale.max;
+                                } else {
+                                    // Use mouse position as zoom center
+                                    xCenter = dataX;
+                                }
+                            }
+
+                            // Clamp center so zoom doesn't go out of bounds
+                            let newXMin = xCenter - newXRange/2;
+                            let newXMax = xCenter + newXRange/2;
+                            const dayStart = new Date(today);
+                            const dayEnd = new Date(today.getTime() + 23 * 60 * 60 * 1000);
+                            if (newXMin < dayStart) {
+                                newXMin = dayStart;
+                                newXMax = dayStart.getTime() + newXRange;
+                            }
+                            if (newXMax > dayEnd) {
+                                newXMax = dayEnd;
+                                newXMin = dayEnd.getTime() - newXRange;
+                            }
+                            // Y center and bounds (no edge snap needed)
+                            let newYMin = yCenter - newYRange/2;
+                            let newYMax = yCenter + newYRange/2;
+                            if (newYMin < currentMinTemp) {
+                                newYMin = currentMinTemp;
+                                newYMax = currentMinTemp + newYRange;
+                            }
+                            if (newYMax > currentMaxTemp) {
+                                newYMax = currentMaxTemp;
+                                newYMin = currentMaxTemp - newYRange;
+                            }
+                            // Apply new zoom
+                            chart.zoomScale('x', {min: newXMin, max: newXMax});
+                            chart.zoomScale('y', {min: newYMin, max: newYMax});
+                        }
+                    }
+                });
+                
+                document.getElementById('zoomOutBtn').addEventListener('click', function() {
+                    if (window.tempChart && typeof window.tempChart.zoom === 'function') {
+                        const chart = window.tempChart;
+                        const xScale = chart.scales.x;
+                        const yScale = chart.scales.y;
+                        
+                        // Calculate zoom factor (zoom out by 50%)
+                        const zoomFactor = 1.5;
+                        
+                        // Get current range
+                        const xRange = xScale.max - xScale.min;
+                        const yRange = yScale.max - yScale.min;
+                        
+                        // Calculate new range (larger = zoomed out)
+                        const newXRange = xRange * zoomFactor;
+                        const newYRange = yRange * zoomFactor;
+                        
+                        // Calculate center points
+                        const xCenter = (xScale.max + xScale.min) / 2;
+                        const yCenter = (yScale.max + yScale.min) / 2;
+                        
+                        // Set maximum zoom limits (don't zoom out beyond 24 hours)
+                        const maxTimeRange = 24 * 60 * 60 * 1000; // 24 hours maximum
+                        const maxTempRange = currentMaxTemp - currentMinTemp; // Don't exceed original temp range
+                        
+                        let finalXRange = newXRange;
+                        let finalYRange = newYRange;
+                        
+                        // Limit time range to 24 hours max
+                        if (newXRange > maxTimeRange) {
+                            finalXRange = maxTimeRange;
+                        }
+                        
+                        // Limit temperature range to original range
+                        if (newYRange > maxTempRange) {
+                            finalYRange = maxTempRange;
+                        }
+                        
+                        // Calculate final bounds
+                        let newXMin = xCenter - finalXRange/2;
+                        let newXMax = xCenter + finalXRange/2;
+                        let newYMin = yCenter - finalYRange/2;
+                        let newYMax = yCenter + finalYRange/2;
+                        
+                        // Ensure we don't go beyond the 24-hour day bounds
+                        const dayStart = new Date(today);
+                        const dayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+                        
+                        if (newXMin < dayStart) {
+                            newXMin = dayStart;
+                            newXMax = dayStart + finalXRange;
+                        }
+                        if (newXMax > dayEnd) {
+                            newXMax = dayEnd;
+                            newXMin = dayEnd - finalXRange;
+                        }
+                        
+                        // Ensure we don't go beyond temperature bounds
+                        if (newYMin < currentMinTemp) {
+                            newYMin = currentMinTemp;
+                            newYMax = currentMinTemp + finalYRange;
+                        }
+                        if (newYMax > currentMaxTemp) {
+                            newYMax = currentMaxTemp;
+                            newYMin = currentMaxTemp - finalYRange;
+                        }
+                        
+                        // Apply new zoom
+                        chart.zoomScale('x', {min: newXMin, max: newXMax});
+                        chart.zoomScale('y', {min: newYMin, max: newYMax});
+                    }
+                });
+                
+                // Ensure temp grid content can expand properly after being populated
+                setTimeout(() => {
+                    const collapsible = document.querySelector('.collapsible');
+                    if (collapsible && collapsible.classList.contains('active')) {
+                        const content = collapsible.nextElementSibling;
+                        content.style.maxHeight = content.scrollHeight + "px";
+                    }
+                }, 500);
+                
+                // Heating Schedule Functionality
+                setupHeatingSchedule();
+            } catch (error) {
+                // Optionally handle or log the error
+            }
+        }
+
+        function setTemperature(index, temp) {
+            if (index < 0 || index >= maxTempPoints) return;            
+            // Update chart data
+            if (window.tempChart && window.tempChart.data.datasets[0]) {
+                window.tempChart.data.datasets[0].data[index].y = temp;
+                window.tempChart.update('active');
+                
+                // Update manual time setter input fields
+                const tempInput = document.getElementById('manualTemp');
+                if (tempInput) {
+                    tempInput.value = temp;
+                }
+                
+                // Auto-save: Send update to server immediately
+                fetch('/api/updateTemp', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({index: index, temp: temp}),
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                    }
+                })
+                .then(result => {
+                })
+                .catch(error => {
+                    showNotification(`Failed to save temperature: ${error.message}`, 'error');
+                });
+            }
+        }
+
+        function updateTemperature(index, temp) {
+            setTemperature(index, temp);
+        }
+
+        // Setup manual time/temperature setter
+        function setupManualTimeSetter() {
+            const hourSelect = document.getElementById('manualHour');
+            const minuteSelect = document.getElementById('manualMinute');
+            const tempInput = document.getElementById('manualTemp');
+            const setBtn = document.getElementById('setManualTempBtn');
+
+            // Clear existing options
+            hourSelect.innerHTML = '';
+            minuteSelect.innerHTML = '';
+
+            // Populate hour options (00-23)
+            for (let hour = 0; hour < 24; hour++) {
+                const option = document.createElement('option');
+                option.value = hour;
+                option.textContent = hour.toString().padStart(2, '0');
+                hourSelect.appendChild(option);
+            }
+
+            // Populate minute options based on temperature resolution
+            function updateMinuteOptions() {
+                minuteSelect.innerHTML = '';
+                const minutesPerPoint = 60 / tempResolution;
+                for (let i = 0; i < tempResolution; i++) {
+                    const option = document.createElement('option');
+                    const minute = i * minutesPerPoint;
+                    option.value = minute;
+                    option.textContent = minute.toString().padStart(2, '0');
+                    minuteSelect.appendChild(option);
+                }
+            }
+            
+            // Initialize minute options
+            updateMinuteOptions();
+
+            // Handle resolution changes
+            const resolutionSelect = document.getElementById('tempResolution');
+            if (resolutionSelect) {
+                resolutionSelect.addEventListener('change', function() {
+                    tempResolution = parseInt(this.value);
+                    updateMinuteOptions();
+                });
+            }
+
+            // Set button click handler
+            setBtn.onclick = function() {
+                try {
+                    const hour = parseInt(hourSelect.value);
+                    const minute = parseInt(minuteSelect.value);
+                    const temp = parseFloat(tempInput.value);
+                    const minutesPerPoint = 60 / tempResolution;
+                    
+                    // Calculate the index based on time and resolution
+                    const totalMinutes = hour * 60 + minute;
+                    const index = Math.floor(totalMinutes / minutesPerPoint);
+
+                    if (index >= 0 && index < maxTempPoints) {
+                        setTemperature(index, temp);
+                        showNotification(`Temperature set to ${temp}C at ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,'success');
+                        tempInput.value = '';
+                    } else {
+                        showNotification('Invalid time selection', 'error');
+                    }
+                } catch (error) {
+                }
+            };
+
+        }
+
+        // Load temperature log data
+        function loadTemperatureLog(callback) {
+            fetch('/api/templog')
+                .then(response => {
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            return null;
+                        }
+                        throw new Error(`Failed to load temperature log: ${response.status} ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(csvData => {
+                    if (!csvData || !csvData.trim()) {
+                        window.tempLogData = { actualTemps: [], timestamps: [], targetTemps: [], furnaceOn: [] };
+                        if (callback) callback();
+                        return;
+                    }
+
+                    // Parse CSV data
+                    const lines = csvData.trim().split('\n');
+                    
+                    if (lines.length < 2) {
+                        window.tempLogData = { actualTemps: [], timestamps: [], targetTemps: [], furnaceOn: [] };
+                        if (callback) callback();
+                        return;
+                    }
+
+                    // Initialize data structure
+                    const tempLogData = {
+                        timestamps: [],
+                        actualTemps: [],
+                        targetTemps: [],
+                        furnaceOn: []
+                    };
+
+                    // Skip header line and parse data
+                    const dataLines = lines.slice(1);
+                    let validEntries = 0;
+                    let hasInvalidData = false;
+
+                    dataLines.forEach((line, index) => {
+                        try {
+                            line = line.trim();
+                            if (!line) return; // Skip empty lines
+                            
+                            const parts = line.split(',');
+                            if (parts.length >= 4) {
+                                const timestamp = parts[0].trim();
+                                const actualTemp = parseFloat(parts[1]);
+                                const targetTemp = parseFloat(parts[2]);
+                                const furnaceStatus = parts[3].trim().toUpperCase();
+                                
+                                // Validate data
+                                if (isNaN(actualTemp) || isNaN(targetTemp)) {
+                                    hasInvalidData = true;
+                                    return;
+                                }
+                                
+                                // Ensure timestamp has seconds for consistent parsing
+                                let formattedTimestamp = timestamp;
+                                if (timestamp.match(/^\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}$/)) {
+                                    formattedTimestamp = timestamp + ':00'; // Add seconds if missing
+                                }
+                                
+                                tempLogData.timestamps.push(formattedTimestamp);
+                                tempLogData.actualTemps.push(actualTemp);
+                                tempLogData.targetTemps.push(targetTemp);
+                                tempLogData.furnaceOn.push(
+                                    furnaceStatus === 'ON' || 
+                                    furnaceStatus === '1' ||
+                                    furnaceStatus === 'TRUE'
+                                );
+                                validEntries++;
+                            } else {
+                                hasInvalidData = true;
+                            }
+                        } catch (e) {
+                            hasInvalidData = true;
+                        }
+                    });
+
+           
+                    
+                    if (validEntries === 0) {
+                        window.tempLogData = { actualTemps: [], timestamps: [], targetTemps: [], furnaceOn: [] };
+                    } else {
+                        // Only update tempLogData if we have valid entries
+                        window.tempLogData = tempLogData                      
+                    }
+                    
+                    if (hasInvalidData) {
+                    }
+                    
+                    if (callback) callback();
+                })
+                .catch(error => {
+                    // Initialize with empty data if log fails to load
+                    window.tempLogData = { actualTemps: [], timestamps: [], targetTemps: [], furnaceOn: [] };
+                    if (callback) callback();
+                });
+        }
+
+        // Profile Management Setup
+        function setupProgramManagement() {
+            // Save Profile Modal Logic
+            const saveProgramBtn = document.getElementById('saveProgramBtn');
+            const saveProgramModal = document.getElementById('saveProgramModal');
+            const closeSaveProgramModal = document.getElementById('closeSaveProgramModal');
+            const cancelSaveProgramBtn = document.getElementById('cancelSaveProgramBtn');
+            const confirmSaveProgramBtn = document.getElementById('confirmSaveProgramBtn');
+            const programNameInput = document.getElementById('programNameInput');
+            const programDescInput = document.getElementById('programDescInput');
+            const programSlotSelect = document.getElementById('programSlotSelect');
+
+            // Open save profile modal
+            saveProgramBtn.addEventListener('click', function() {
+                fetch('/api/programs')
+                    .then(res => res.json())
+                    .then(data => {
+                        const programs = data.programs || [];
+                        programSlotSelect.innerHTML = '';
+                        let firstEmpty = 0;
+                        for (let i = 0; i < 10; i++) {
+                            const prog = programs.find(p => p.id === i || p.index === i);
+                            const option = document.createElement('option');
+                            option.value = i;
+                            if (prog && prog.name) {
+                                option.textContent = `Slot ${i+1}: ${prog.name}`;
+                            } else {
+                                option.textContent = `Slot ${i+1} (empty)`;
+                                if (firstEmpty === 0) firstEmpty = i;
+                            }
+                            programSlotSelect.appendChild(option);
+                        }
+                        programSlotSelect.value = firstEmpty;
+                    })
+                    .catch(() => {
+                        programSlotSelect.innerHTML = '';
+                        for (let i = 0; i < 10; i++) {
+                            const option = document.createElement('option');
+                            option.value = i;
+                            option.textContent = `Slot ${i+1}`;
+                            programSlotSelect.appendChild(option);
+                        }
+                        programSlotSelect.value = 0;
+                    });
+                saveProgramModal.style.display = 'block';
+                programNameInput.value = '';
+                programDescInput.value = '';
+                programNameInput.focus();
+            });
+
+            // Close modal handlers
+            closeSaveProgramModal.addEventListener('click', function() {
+                saveProgramModal.style.display = 'none';
+            });
+            
+            cancelSaveProgramBtn.addEventListener('click', function() {
+                saveProgramModal.style.display = 'none';
+            });
+
+            // Save profile handler
+            confirmSaveProgramBtn.addEventListener('click', function() {
+                const name = programNameInput.value.trim();
+                const description = programDescInput.value.trim();
+                const slotIndex = parseInt(programSlotSelect.value);
+
+                if (!name) {
+                    showNotification('Please enter a program name.', 'error');
+                    return;
+                }
+
+                // Get current temperature data from chart
+                let temps = [];
+                if (window.tempChart && window.tempChart.data.datasets[0]) {
+                    temps = window.tempChart.data.datasets[0].data.map(pt => pt.y || 0);
+                } else {
+                    // Fallback: create array of zeros
+                    temps = Array(Math.max(maxTempPoints, 96)).fill(0);
+                }
+                
+                // Ensure the last point is always 0
+                if (temps.length > 0) {
+                    temps[temps.length - 1] = 0;
+                }
+
+                // Save profile to server
+                const programData = {
+                    index: slotIndex,
+                    name: name,
+                    description: description,
+                    temps: temps
+                };
+
+                console.log('Sending program data:', programData);
+                console.log('Temps array length:', temps.length);
+                console.log('Chart available:', !!window.tempChart);
+                if (window.tempChart && window.tempChart.data.datasets[0]) {
+                    console.log('Chart data points:', window.tempChart.data.datasets[0].data.length);
+                }
+
+                // Ensure temps array is not empty
+                if (temps.length === 0) {
+                    showNotification('No temperature data available. Please set some temperatures on the chart first.', 'error');
+                    return;
+                }
+
+                fetch('/api/saveProgram', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(programData)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        return response.json().then(errorData => {
+                            throw new Error(errorData.error || `Server returned ${response.status}: ${response.statusText}`);
+                        });
+                    }
+                })
+                .then(data => {
+                    if (data.success) {
+                        showNotification(`Program "${name}" saved successfully to Slot ${slotIndex + 1}!`, 'success');
+                        saveProgramModal.style.display = 'none';
+                        // Refresh profile selector
+                        loadPrograms();
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Failed to save program: ' + error.message, 'error');
+                });
+            });
+        }
+
+        function loadPrograms(forManagement = false) {
+            // This function is now a no-op since the programSelector dropdown was removed.
+        }
+
+        function loadProgramFromServer(index) {
+            fetch('/api/loadProgram', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({index}),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load program');
+                }
+                return response.text();
+            })
+            .then(() => {
+                fetchStatus(true); // Do a full status update after loading program
+                showNotification('Program loaded successfully', 'success');
+            })
+            .catch(error => {
+                showNotification('Failed to load program: ' + error.message, 'error');
+            });
+        }
+
+        // Helper function to check if chart is in panning mode (zoomed)
+        function isPanningEnabled() {
+            if (!window.tempChart) return false;
+                    
+            // Check if chart has been zoomed on X-axis (time)
+            const xScale = window.tempChart.scales.x;
+            const fullDayStart = new Date(today);
+            const fullDayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+                    
+            // Check if the current view is different from the full day view
+            const isXZoomed = Math.abs(xScale.min - fullDayStart) > 1000 || Math.abs(xScale.max - fullDayEnd) > 1000;
+                    
+            // Check if chart has been zoomed on Y-axis (temperature)
+            const yScale = window.tempChart.scales.y;
+            const isYZoomed = Math.abs(yScale.min - currentMinTemp) > 5 || Math.abs(yScale.max - currentMaxTemp) > 5;
+                    
+            // Return true if either axis is zoomed
+            return isXZoomed || isYZoomed;
+        }
+        
+        // Schedule management variables and functions
+        let scheduleEntries = [];
+        let nextScheduleId = 1;
+
+        function addScheduleEntry() {
+            const newEntry = {
+                id: nextScheduleId++,
+                time: '09:00',
+                temperature: 200,
+                rampDelta: 0, // °C
+                rampDuration: 0 // minutes
+            };
+            scheduleEntries.push(newEntry);
+            renderScheduleEntries();
+        }
+
+        function removeScheduleEntry(id) {
+            scheduleEntries = scheduleEntries.filter(entry => entry.id !== id);
+            renderScheduleEntries();
+        }
+
+        function renderScheduleEntries() {
+            const container = document.getElementById('scheduleEntries');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            scheduleEntries.forEach(entry => {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'schedule-entry';
+                entryDiv.innerHTML = `
+                    <div class="schedule-fields-row">
+                        <label>Time:</label>
+                        <input type="time" value="${entry.time}" onchange="updateScheduleEntry(${entry.id}, 'time', this.value)">
+                        <label>Temperature:</label>
+                        <input type="number" value="${entry.temperature}" min="0" max="2000" step="1" onchange="updateScheduleEntry(${entry.id}, 'temperature', this.value)">
+                        <span>C</span>
+                    </div>
+                    <div class="schedule-fields-ramp">
+                        <label style="font-weight:400;">Ramp Amount:</label>
+                        <input type="number" value="${entry.rampDelta}" min="0" max="1000" step="1" style="width:60px" onchange="updateScheduleEntry(${entry.id}, 'rampDelta', this.value)">
+                        <span>C</span>
+                        <label style="font-weight:400;">Ramp Duration:</label>
+                        <input type="number" value="${entry.rampDuration}" min="0" max="600" step="1" style="width:70px" onchange="updateScheduleEntry(${entry.id}, 'rampDuration', this.value)">
+                        <span>min</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeScheduleEntry(${entry.id})">Remove</button>
+                `;
+                container.appendChild(entryDiv);
+            });
+        }
+
+        function updateScheduleEntry(id, field, value) {
+            const entry = scheduleEntries.find(e => e.id === id);
+            if (entry) {
+                if (field === 'temperature' || field === 'rampDelta' || field === 'rampDuration') {
+                    entry[field] = parseFloat(value);
+                } else {
+                    entry[field] = value;
+                }
+            }
+        }
+
+        function applyScheduleToChart() {
+            if (!window.tempChart || scheduleEntries.length === 0) {
+                showNotification('Please add at least one schedule entry', 'error');
+                return;
+            }
+            
+            // Sort entries by time
+            const sortedEntries = [...scheduleEntries].sort((a, b) => {
+                const timeA = a.time.split(':').map(Number);
+                const timeB = b.time.split(':').map(Number);
+                return (timeA[0] * 60 + timeA[1]) - (timeB[0] * 60 + timeB[1]);
+            });
+            
+            const minutesPerPoint = 60 / tempResolution;
+            
+
+            // Apply schedule to chart with ramp support
+            sortedEntries.forEach((entry, index) => {
+                const [hours, minutes] = entry.time.split(':').map(Number);
+                const totalMinutes = hours * 60 + minutes;
+                const startIndex = Math.floor(totalMinutes / minutesPerPoint);
+                // Find next entry or end of day
+                const nextEntry = sortedEntries[index + 1];
+                let endIndex;
+                if (nextEntry) {
+                    const [nextHours, nextMinutes] = nextEntry.time.split(':').map(Number);
+                    const nextTotalMinutes = nextHours * 60 + nextMinutes;
+                    endIndex = Math.floor(nextTotalMinutes / minutesPerPoint);
+                } else {
+                    endIndex = maxTempPoints; // Until end of day
+                }
+                // If ramp is specified and duration > 0, interpolate temperature
+                if (entry.rampDelta && entry.rampDuration > 0) {
+                    const rampPoints = Math.round(entry.rampDuration / minutesPerPoint);
+                    for (let i = 0; i < rampPoints && (startIndex + i) < endIndex && (startIndex + i) < maxTempPoints; i++) {
+                        const temp = entry.temperature + (entry.rampDelta * (i / rampPoints));
+                        window.tempChart.data.datasets[0].data[startIndex + i].y = temp;
+                        fetch('/api/updateTemp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ index: startIndex + i, temp: temp })
+                        });
+                    }
+                    // After ramp, hold at (temperature + rampDelta) until next entry
+                    for (let i = startIndex + rampPoints; i < endIndex && i < maxTempPoints; i++) {
+                        window.tempChart.data.datasets[0].data[i].y = entry.temperature + entry.rampDelta;
+                        fetch('/api/updateTemp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ index: i, temp: entry.temperature + entry.rampDelta })
+                        });
+                    }
+                } else {
+                    // No ramp: hold temperature until next entry
+                    for (let i = startIndex; i < endIndex && i < maxTempPoints; i++) {
+                        window.tempChart.data.datasets[0].data[i].y = entry.temperature;
+                        fetch('/api/updateTemp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ index: i, temp: entry.temperature })
+                        });
+                    }
+                }
+            });
+            
+            // Update chart
+            window.tempChart.update('none');
+            
+            showNotification(`Schedule applied! ${sortedEntries.length} entries set across ${maxTempPoints} time points.`, 'success');
+        }
+
+        function clearSchedule() {
+            if (confirm('Are you sure you want to clear the heating schedule?')) {
+                scheduleEntries = [];
+                renderScheduleEntries();
+            }
+        }
+
+        // Initialize the page
+        // Track the last logging frequency to detect changes
+        let lastLoggingFrequencySeconds = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setupCollapsibles();
+
+            // Load temperature log data before initializing chart
+            loadTemperatureLog(() => {
+                fetchStatus(true);
+                setupManualTimeSetter();
+                setupProgramManagement();
+                loadPrograms();
+            });
+
+            // Set up periodic partial updates (every second)
+            if (statusUpdateInterval) {
+                clearInterval(statusUpdateInterval);
+            }
+                            statusUpdateInterval = setInterval(() => fetchStatusLite(), 2000); // Reduced from 1s to 2s for better performance
+
+            // Set up periodic temperature log refresh (interval will be set by fetchStatus)
+            if (window.tempLogUpdateInterval) {
+                clearInterval(window.tempLogUpdateInterval);
+            }
+            // Initial interval (will be corrected by fetchStatus)
+            window.tempLogUpdateInterval = setInterval(() => {
+                loadTemperatureLog(() => {
+                    if (window.tempChart && window.tempLogData) {
+                        updateActualTemperatureData();
+                    }
+                });
+            }, 30000);
+
+            // Additional setup
+            document.getElementById('updateRangeBtn').addEventListener('click', updateTemperatureRange);
+        });
+
+        // Helper to update the temp log interval
+        function updateTempLogInterval(newIntervalSec) {
+            if (window.tempLogUpdateInterval) {
+                clearInterval(window.tempLogUpdateInterval);
+            }
+            window.tempLogUpdateInterval = setInterval(() => {
+                loadTemperatureLog(() => {
+                    if (window.tempChart && window.tempLogData) {
+                        updateActualTemperatureData();
+                    }
+                });
+            }, Math.max(2000, newIntervalSec * 1000)); // Minimum 2 seconds for safety
+        }
+
+            // Chart control buttons
+            document.getElementById('refreshLogBtn').addEventListener('click', function() {
+                loadTemperatureLog(() => {
+                    // Reinitialize chart with the current data
+                    if (window.tempChart) {
+                        fetch('/api/status')
+                            .then(response => response.json())
+                            .then(data => {
+                                initChart(data.targetTemps);
+                            })
+                            .catch(error => {
+                            });
+                    }
+                });
+            });
+            
+            // Fullscreen Chart button
+            document.getElementById('fullscreenChartBtn').addEventListener('click', function() {
+                const chartContainer = document.querySelector('.chart-container');
+                if (!document.fullscreenElement) {
+                    if (chartContainer.requestFullscreen) {
+                        chartContainer.requestFullscreen();
+                    } else if (chartContainer.webkitRequestFullscreen) {
+                        chartContainer.webkitRequestFullscreen();
+                    } else if (chartContainer.msRequestFullscreen) {
+                        chartContainer.msRequestFullscreen();
+                    } else {
+                        // fallback: add a class
+                        chartContainer.classList.add('fullscreen-active');
+                        resizeChartToFullscreen(true);
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    } else {
+                        chartContainer.classList.remove('fullscreen-active');
+                        resizeChartToFullscreen(false);
+                    }
+                }
+            });
+
+            // Listen for fullscreen change to resize chart and toggle visibility
+            document.addEventListener('fullscreenchange', function() {
+                const chartContainer = document.querySelector('.chart-container');
+                const isFullscreen = document.fullscreenElement === chartContainer;
+                if (isFullscreen) {
+                    chartContainer.classList.add('fullscreen-active');
+                } else {
+                    chartContainer.classList.remove('fullscreen-active');
+                }
+                resizeChartToFullscreen(isFullscreen);
+            });
+
+            // Helper to resize chart when entering/exiting fullscreen
+            function resizeChartToFullscreen(full) {
+                const chartContainer = document.querySelector('.chart-container');
+                const canvas = chartContainer.querySelector('canvas');
+                if (full) {
+                    canvas.style.width = '100vw';
+                    canvas.style.height = '100vh';
+                } else {
+                    canvas.style.width = '';
+                    canvas.style.height = '';
+                }
+                if (window.tempChart && typeof window.tempChart.resize === 'function') {
+                    setTimeout(() => window.tempChart.resize(), 100);
+                }
+            }
+            // Reset Zoom button
+            document.getElementById('resetZoomBtn').addEventListener('click', function() {
+    if (window.tempChart) {
+        const chart = window.tempChart;
+        // Restore to full intended range (100% zoom)
+        if (typeof chart._initialXMin !== 'undefined' && typeof chart._initialXMax !== 'undefined') {
+            chart.options.scales.x.min = chart._initialXMin;
+            chart.options.scales.x.max = chart._initialXMax;
+        }
+        chart.options.scales.y.min = typeof currentMinTemp !== 'undefined' ? currentMinTemp : chart.scales.y.min;
+        chart.options.scales.y.max = typeof currentMaxTemp !== 'undefined' ? currentMaxTemp : chart.scales.y.max;
+        chart.update();
+    }
+});
+            
+            // Zoom In button
+            document.getElementById('zoomInBtn').addEventListener('mousedown', function(e) {
+                window.lastZoomMouseEvent = e;
+            });
+            
+            document.getElementById('zoomInBtn').addEventListener('click', function(e) {
+                if (window.tempChart) {
+                    const chart = window.tempChart;
+                    const xScale = chart.scales.x;
+                    const yScale = chart.scales.y;
+
+                    // Calculate zoom factor (zoom in by 50%)
+                    const zoomFactor = 0.5;
+
+                    // Get current range
+                    const xRange = xScale.max - xScale.min;
+                    const yRange = yScale.max - yScale.min;
+
+                    // Calculate new range (smaller = zoomed in)
+                    const newXRange = xRange * zoomFactor;
+                    const newYRange = yRange * zoomFactor;
+
+                    // Set minimum zoom limits (don't zoom in too much)
+                    const minTimeRange = 30 * 60 * 1000; // 30 minutes minimum
+                    const minTempRange = 50; // 50°C minimum range
+
+                    if (newXRange >= minTimeRange && newYRange >= minTempRange) {
+                        let xCenter = (xScale.max + xScale.min) / 2;
+                        let yCenter = (yScale.max + yScale.min) / 2;
+
+                        // Edge-aware zoom: snap to left/right edge if mouse is near
+                        if (window.lastZoomMouseEvent && chart.canvas) {
+                            const rect = chart.canvas.getBoundingClientRect();
+                            const mouseX = window.lastZoomMouseEvent.clientX - rect.left;
+                            const leftEdge = 0;
+                            const rightEdge = rect.width;
+                            const edgeThreshold = 40; // px from edge to snap
+                            // Get value for mouse position
+                            const dataX = xScale.getValueForPixel(mouseX);
+
+                            if (mouseX - leftEdge < edgeThreshold) {
+                                // Snap zoom center to min x (start of chart)
+                                xCenter = xScale.min;
+                            } else if (rightEdge - mouseX < edgeThreshold) {
+                                // Snap zoom center to max x (end of chart)
+                                xCenter = xScale.max;
+                            } else {
+                                // Use mouse position as zoom center
+                                xCenter = dataX;
+                            }
+                        }
+
+                        // Clamp center so zoom doesn't go out of bounds
+                        let newXMin = xCenter - newXRange/2;
+                        let newXMax = xCenter + newXRange/2;
+                        const dayStart = new Date(today);
+                        const dayEnd = new Date(today.getTime() + 23 * 60 * 60 * 1000);
+                        if (newXMin < dayStart) {
+                            newXMin = dayStart;
+                            newXMax = dayStart.getTime() + newXRange;
+                        }
+                        if (newXMax > dayEnd) {
+                            newXMax = dayEnd;
+                            newXMin = dayEnd.getTime() - newXRange;
+                        }
+                        // Y center and bounds (no edge snap needed)
+                        let newYMin = yCenter - newYRange/2;
+                        let newYMax = yCenter + newYRange/2;
+                        if (newYMin < currentMinTemp) {
+                            newYMin = currentMinTemp;
+                            newYMax = currentMinTemp + newYRange;
+                        }
+                        if (newYMax > currentMaxTemp) {
+                            newYMax = currentMaxTemp;
+                            newYMin = currentMaxTemp - newYRange;
+                        }
+                        // Apply new zoom
+                        chart.zoomScale('x', {min: newXMin, max: newXMax});
+                        chart.zoomScale('y', {min: newYMin, max: newYMax});
+                    }
+                }
+            });
+            
+            // Zoom Out button
+            document.getElementById('zoomOutBtn').addEventListener('click', function() {
+                if (window.tempChart) {
+                    const chart = window.tempChart;
+                    const xScale = chart.scales.x;
+                    const yScale = chart.scales.y;
+                    
+                    // Calculate zoom factor (zoom out by 50%)
+                    const zoomFactor = 1.5;
+                    
+                    // Get current range
+                    const xRange = xScale.max - xScale.min;
+                    const yRange = yScale.max - yScale.min;
+                    
+                    // Calculate new range (larger = zoomed out)
+                    const newXRange = xRange * zoomFactor;
+                    const newYRange = yRange * zoomFactor;
+                    
+                    // Calculate center points
+                    const xCenter = (xScale.max + xScale.min) / 2;
+                    const yCenter = (yScale.max + yScale.min) / 2;
+                    
+                    // Set maximum zoom limits (don't zoom out beyond 24 hours)
+                    const maxTimeRange = 24 * 60 * 60 * 1000; // 24 hours maximum
+                    const maxTempRange = currentMaxTemp - currentMinTemp; // Don't exceed original temp range
+                    
+                    let finalXRange = newXRange;
+                    let finalYRange = newYRange;
+                    
+                    // Limit time range to 24 hours max
+                    if (newXRange > maxTimeRange) {
+                        finalXRange = maxTimeRange;
+                    }
+                    
+                    // Limit temperature range to original range
+                    if (newYRange > maxTempRange) {
+                        finalYRange = maxTempRange;
+                    }
+                    
+                    // Calculate final bounds
+                    let newXMin = xCenter - finalXRange/2;
+                    let newXMax = xCenter + finalXRange/2;
+                    let newYMin = yCenter - finalYRange/2;
+                    let newYMax = yCenter + finalYRange/2;
+                    
+                    // Ensure we don't go beyond the 24-hour day bounds
+                    const dayStart = new Date(today);
+                    const dayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+                    
+                    if (newXMin < dayStart) {
+                        newXMin = dayStart;
+                        newXMax = dayStart + finalXRange;
+                    }
+                    if (newXMax > dayEnd) {
+                        newXMax = dayEnd;
+                        newXMin = dayEnd - finalXRange;
+                    }
+                    
+                    // Ensure we don't go beyond temperature bounds
+                    if (newYMin < currentMinTemp) {
+                        newYMin = currentMinTemp;
+                        newYMax = currentMinTemp + finalYRange;
+                    }
+                    if (newYMax > currentMaxTemp) {
+                        newYMax = currentMaxTemp;
+                        newYMin = currentMaxTemp - finalYRange;
+                    }
+                    
+                    // Apply new zoom
+                    chart.zoomScale('x', {min: newXMin, max: newXMax});
+                    chart.zoomScale('y', {min: newYMin, max: newYMax});
+                }
+            });
+            
+            // Heating Schedule Functionality
+            setupHeatingSchedule();
+            
+            function setupHeatingSchedule() {
+                document.getElementById('addScheduleBtn').addEventListener('click', addScheduleEntry);
+                document.getElementById('applyScheduleBtn').addEventListener('click', applyScheduleToChart);
+                document.getElementById('clearScheduleBtn').addEventListener('click', clearSchedule);
+            }
+            // Animation function for smooth temperature scaling
+            function animateTemperatureScale(chart, startMin, startMax, targetMin, targetMax, duration) {
+            const startTime = Date.now();
+            const animationInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Smooth easing function for more natural animation
+                const easeInOut = progress < 0.5 
+                    ? 2 * progress * progress 
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+                // Calculate new min and max values based on progress
+                const newMin = startMin + (targetMin - startMin) * easeInOut;
+                const newMax = startMax + (targetMax - startMax) * easeInOut;
+                
+                // Update chart options
+                chart.options.scales.y.min = newMin;
+                chart.options.scales.y.max = newMax;
+                
+                // Update chart
+                chart.update('none');
+                
+                // Stop animation when complete
+                if (progress === 1) {
+                    clearInterval(animationInterval);
+                }
+            }, 16); // 16ms = 60fps
+        }
+        
+        function updateActualTemperatureData() {
+            if (!window.tempChart || !window.tempLogData) return;
+            
+            const actualTempData = window.tempLogData.actualTemps.map((temp, index) => {
+                let timeValue = new Date();
+                let preciseTimestamp = null;
+                
+                if (window.tempLogData.timestamps && window.tempLogData.timestamps[index]) {
+                    const timestamp = window.tempLogData.timestamps[index];
+                    preciseTimestamp = timestamp;
+                    
+                    // Extract time part from timestamp (assuming format: "YYYY-MM-DD HH:MM:SS")
+                    const timePart = timestamp.split(' ')[1];
+                    if (timePart) {
+                        const [hours, minutes, seconds] = timePart.split(':').map(Number);
+                        // Create a date object for today with the logged time
+                        timeValue = new Date();
+                        timeValue.setHours(hours, minutes, seconds || 0, 0);
+                    }
+                }
+                
+                return {
+                    x: timeValue,
+                    y: temp,
+                    timestamp: preciseTimestamp,
+                    furnaceOn: window.tempLogData.furnaceOn ? window.tempLogData.furnaceOn[index] : false
+                };
+            });
+            
+            window.tempChart.data.datasets[1].data = actualTempData;
+            window.tempChart.update('none');
+        }
+
+        // --- Add after chart controls are created (after refreshLogBtn) ---
+        (function() {
+            if (!document.getElementById('resetTargetTempsBtn')) {
+                const refreshBtn = document.getElementById('refreshLogBtn');
+                if (refreshBtn && refreshBtn.parentElement) {
+                    const resetBtn = document.createElement('button');
+                    resetBtn.id = 'resetTargetTempsBtn';
+                    resetBtn.className = 'chart-control-btn';
+                    resetBtn.textContent = 'Reset Target Temperatures';
+                    refreshBtn.parentElement.appendChild(resetBtn);
+                    resetBtn.addEventListener('click', function() {
+                        fetch('/api/status')
+                            .then(response => response.json())
+                            .then(data => {
+                                let targetTemps = data.targetTemps || [];
+                                if (!Array.isArray(targetTemps) || targetTemps.length === 0) {
+                                    showNotification('No target temperature data found.', 'error');
+                                    return;
+                                }
+                                // Set all to 0
+                                targetTemps = targetTemps.map(() => 0);
+                                // Update chart immediately
+                                if (typeof initChart === 'function') initChart(targetTemps);
+                                // Save to backend (overwrite current active program slot)
+                                fetch('/api/programs')
+                                    .then(res => res.json())
+                                    .then(programsData => {
+                                        const activeSlot = typeof data.activeProgram === 'number' ? data.activeProgram : 0;
+                                        const programName = (programsData.programs && programsData.programs[activeSlot] && programsData.programs[activeSlot].name) || `Slot ${activeSlot+1}`;
+                                        fetch('/api/saveProgram', {
+                                            method: 'POST',
+                                            headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({
+                                                index: activeSlot,
+                                                name: programName,
+                                                description: 'Reset to 0',
+                                                temps: targetTemps
+                                            })
+                                        })
+                                        .then(res => res.json())
+                                        .then(saveRes => {
+                                            if (saveRes.success) {
+                                                showNotification('Target temperatures reset to 0 and saved.', 'success');
+                                            } else {
+                                                showNotification('Failed to save reset temperatures: ' + (saveRes.error || 'Unknown error'), 'error');
+                                            }
+                                        })
+                                        .catch(() => showNotification('Failed to save reset temperatures.', 'error'));
+                                    });
+                            });
+                    });
+                }
+            }
+        })();
+        // --- Fix Refresh Log button to always update chart with latest log and target data ---
+        (function() {
+            const refreshBtn = document.getElementById('refreshLogBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    loadTemperatureLog(() => {
+                        fetch('/api/status')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (typeof initChart === 'function') initChart(data.targetTemps);
+                            });
+                    });
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

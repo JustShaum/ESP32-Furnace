@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Furnace Control WiFi Setup</title>
+    <script>
+        // Prevents flash of default theme. Must be in the <head> and block.
+        // Check localStorage for theme mode and apply preload class
+        (function() {
+            try {
+                const savedMode = localStorage.getItem('furnaceThemeMode') || 'light';
+                if (savedMode === 'dark') {
+                    document.documentElement.classList.add('dark-mode-preload');
+                } else {
+                    document.documentElement.classList.add('light-mode-preload');
+                }
+            } catch (e) {
+                // Default to light mode if localStorage is not available
+                document.documentElement.classList.add('light-mode-preload');
+            }
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="/css/theme.css">
+    <!-- Theme JS -->
+    <script src="/js/theme.js" defer></script>
+    <!-- Navigation and App JS -->
+    <script src="/js/utils.js"></script>
+    <script src="/js/nav.js" defer></script>
+    <script src="/js/app.js" defer></script>
+    <style>
+        :root{--background-color:#f5f5f5;--card-background:#fff;--text-color:#333;--border-color:#e0e0e0;--highlight-color:#e9f7fe;--success-color:#5cb85c;--warning-color:#f0ad4e;--error-color:#d9534f;--primary-color:#4CAF50;--primary-hover:#45a049;--disabled-color:#d9534f;--disabled-hover:#c9302c;--card-shadow:0 4px 6px rgba(0,0,0,0.1);--transition-speed:0.3s}[data-theme="dark"]{--background-color:#121212;--card-background:#1e1e1e;--text-color:#e0e0e0;--border-color:#333;--highlight-color:#1a3a4a;--success-color:#4caf50;--warning-color:#ff9800;--error-color:#f44336;--primary-color:#4CAF50;--primary-hover:#388e3c;--disabled-color:#f44336;--disabled-hover:#d32f2f;--card-shadow:0 4px 6px rgba(0,0,0,0.3)}body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:20px;background-color:var(--background-color);color:var(--text-color);transition:all var(--transition-speed) ease}.container{max-width:800px;margin:0 auto;background-color:var(--card-background);padding:20px;border-radius:10px;box-shadow:var(--card-shadow)}h1,h2,h3{color:var(--text-color)}.form-group{margin-bottom:20px}.form-group label{display:block;margin-bottom:8px;color:var(--text-color);font-weight:500}.form-group input,.form-group select{width:100%;padding:10px;border-radius:6px;border:1px solid var(--border-color);background-color:var(--card-background);color:var(--text-color);font-size:16px}.checkbox-container{display:flex;align-items:center;margin-bottom:15px}.checkbox-container input[type="checkbox"]{margin-right:8px}button{background-color:var(--primary-color);color:#fff;border:none;padding:12px 20px;border-radius:6px;cursor:pointer;margin-top:8px;font-weight:bold;transition:background-color 0.2s ease,transform 0.1s ease;box-shadow:0 2px 4px rgba(0,0,0,0.1)}button:hover{background-color:var(--primary-hover);transform:translateY(-1px)}button:active{transform:translateY(1px)}.network-list{max-height:300px;overflow-y:auto;margin-top:15px;border:1px solid var(--border-color);border-radius:6px}.network-item{padding:12px 15px;border-bottom:1px solid var(--border-color);cursor:pointer;display:flex;justify-content:space-between;align-items:center}.network-item:last-child{border-bottom:none}.network-item:hover{background-color:var(--highlight-color)}.spinner{border:4px solid rgba(0,0,0,0.1);width:36px;height:36px;border-radius:50%;border-left-color:var(--primary-color);animation:spin 1s ease infinite;margin:0 auto;display:inline-block;vertical-align:middle;margin-right:10px}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}.advanced-toggle{margin-top:20px;color:var(--primary-color);cursor:pointer;font-weight:500}.advanced-settings{display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--border-color)}.signal-strength{display:inline-block;width:20px;height:15px;position:relative}.signal-bar{position:absolute;bottom:0;width:3px;background-color:var(--primary-color);border-radius:1px}.bar1{left:0;height:3px}.bar2{left:5px;height:7px}.bar3{left:10px;height:11px}.bar4{left:15px;height:15px}.weak .bar1{opacity:1}.weak .bar2,.weak .bar3,.weak .bar4{opacity:0.3}.medium .bar1,.medium .bar2{opacity:1}.medium .bar3,.medium .bar4{opacity:0.3}.good .bar1,.good .bar2,.good .bar3{opacity:1}.good .bar4{opacity:0.3}.excellent .bar1,.excellent .bar2,.excellent .bar3,.excellent .bar4{opacity:1}.lock-icon{display:inline-block;width:16px;height:16px;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>');background-repeat:no-repeat;background-size:contain;margin-left:5px}.icon-button{height:40px;width:40px;font-size:20px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:50%;position:absolute;top:20px;right:20px;margin:10px}.icon{display:inline-block;width:20px;height:20px;background-size:contain;background-repeat:no-repeat;background-position:center;vertical-align:middle}.icon-moon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z'/%3E%3C/svg%3E")}.icon-sun{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z'/%3E%3C/svg%3E")}
+        
+        /* Mobile-specific improvements */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px;
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            .form-group input {
+                font-size: 16px; /* Prevents zoom on iOS */
+                padding: 12px 10px;
+            }
+            
+            .network-list {
+                max-height: 250px;
+            }
+            
+            .network-item {
+                padding: 15px;
+                font-size: 16px;
+            }
+            
+            button {
+                width: 100%;
+                padding: 15px 20px;
+                font-size: 16px;
+                margin-top: 15px;
+            }
+            
+            /* Mobile keyboard adjustments */
+            .wifi-form-container {
+                position: relative;
+                z-index: 1000;
+                margin-bottom: 100px; /* Add space for keyboard */
+            }
+            
+            .mobile-keyboard-hint {
+                display: block;
+                font-size: 12px;
+                color: var(--text-color);
+                opacity: 0.7;
+                margin-top: 5px;
+                text-align: center;
+            }
+            
+            .done-button {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background-color: var(--primary-color);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                font-size: 18px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                z-index: 2000;
+                display: none;
+            }
+            
+            .done-button:active {
+                transform: scale(0.95);
+            }
+            
+            /* Ensure form is visible above keyboard */
+            .form-group {
+                margin-bottom: 25px;
+            }
+            
+            /* Make sure the form container is properly positioned */
+            .wifi-form-container {
+                position: relative;
+                min-height: 400px;
+            }
+            
+            /* Ensure status message is visible */
+            #statusMessage {
+                position: relative;
+                z-index: 1002;
+                margin-bottom: 20px;
+            }
+            
+            /* Add padding to bottom of form */
+            .wifi-form-container {
+                padding-bottom: 150px;
+            }
+            
+            /* Ensure connect button is always visible */
+            #connectBtn {
+                position: relative;
+                z-index: 1001;
+                margin-bottom: 80px;
+            }
+        }
+        
+        /* Hide mobile keyboard hint on desktop */
+        @media (min-width: 769px) {
+            .mobile-keyboard-hint {
+                display: none;
+            }
+            
+            .done-button {
+                display: none !important;
+            }
+        }
+        
+        /* Auto-retry indicator */
+        .auto-retry-info {
+            background-color: var(--highlight-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .retry-countdown {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation will be loaded here by nav.js -->
+        <div id="navigation"></div>
+        <h1>Furnace Control WiFi Setup</h1>
+        <p>Configure your furnace controller to connect to your WiFi network.</p>
+        
+        <div id="loading">
+            <div class="spinner"></div> Scanning for networks...
+        </div>
+        
+        <div id="autoRetryInfo" class="auto-retry-info" style="display: none;">
+            <div>Initial scan failed. Auto-retrying in <span id="retryCountdown" class="retry-countdown">5</span> seconds...</div>
+        </div>
+        
+        <div id="networkSection" style="display: none;">
+            <h2>Available Networks</h2>
+            <button id="scanBtn">Scan Again</button>
+            <div id="networkList" class="network-list">
+                <!-- Networks will be populated here -->
+            </div>
+        </div>
+        
+        <div id="wifiForm" class="wifi-form-container" style="display: none;">
+            <h2>Connect to Network</h2>
+            <div class="form-group">
+                <label for="ssid">Network Name (SSID):</label>
+                <input type="text" id="ssid" name="ssid" required readonly>
+                <div class="mobile-keyboard-hint">Tap to edit network name</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" placeholder="Enter WiFi password">
+                <div class="mobile-keyboard-hint">Tap to enter password</div>
+            </div>
+            
+            <div class="advanced-toggle" id="advancedToggle">
+                <span>+ Show Advanced Settings</span>
+            </div>
+            
+            <div class="advanced-settings" id="advancedSettings">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="useStaticIP" name="useStaticIP">
+                    <label for="useStaticIP">Use Static IP Address</label>
+                </div>
+                
+                <div id="staticIPFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="ipAddress">IP Address:</label>
+                        <input type="text" id="ipAddress" name="ipAddress" placeholder="192.168.1.100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gateway">Gateway:</label>
+                        <input type="text" id="gateway" name="gateway" placeholder="192.168.1.1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subnet">Subnet Mask:</label>
+                        <input type="text" id="subnet" name="subnet" placeholder="255.255.255.0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="dns">DNS Server:</label>
+                        <input type="text" id="dns" name="dns" placeholder="8.8.8.8">
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" id="connectBtn">Connect</button>
+        </div>
+        
+        <div id="statusMessage" style="margin-top: 20px; display: none;"></div>
+    </div>
+    
+    <!-- Mobile keyboard dismiss button -->
+    <button class="done-button" id="doneBtn" title="Done">✓</button>
+
+    <script>
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Navigation is handled by nav.js
+            if (typeof loadNavigation === 'function') {
+                loadNavigation();
+            }
+            
+            // Auto-retry variables
+            let autoRetryTimer = null;
+            let retryCountdown = 5;
+            let hasInitialScanFailed = false;
+            
+            // Mobile keyboard handling
+            const doneBtn = document.getElementById('doneBtn');
+            const passwordInput = document.getElementById('password');
+            const ssidInput = document.getElementById('ssid');
+            
+            // Show done button when keyboard appears
+            function showDoneButton() {
+                if (window.innerWidth <= 768) {
+                    doneBtn.style.display = 'block';
+                }
+            }
+            
+            // Hide done button when keyboard is dismissed
+            function hideDoneButton() {
+                doneBtn.style.display = 'none';
+            }
+            
+            // Dismiss keyboard
+            function dismissKeyboard() {
+                document.activeElement.blur();
+                hideDoneButton();
+            }
+            
+            // Event listeners for mobile keyboard
+            if (passwordInput) {
+                passwordInput.addEventListener('focus', showDoneButton);
+                passwordInput.addEventListener('blur', hideDoneButton);
+            }
+            
+            if (ssidInput) {
+                ssidInput.addEventListener('focus', showDoneButton);
+                ssidInput.addEventListener('blur', hideDoneButton);
+            }
+            
+            if (doneBtn) {
+                doneBtn.addEventListener('click', dismissKeyboard);
+            }
+            
+            // Toggle advanced settings
+            const advancedToggle = document.getElementById('advancedToggle');
+            const advancedSettings = document.getElementById('advancedSettings');
+            
+            if (advancedToggle && advancedSettings) {
+                advancedToggle.addEventListener('click', function() {
+                    if (advancedSettings.style.display === 'none' || !advancedSettings.style.display) {
+                        advancedSettings.style.display = 'block';
+                        advancedToggle.innerHTML = '<span>- Hide Advanced Settings</span>';
+                    } else {
+                        advancedSettings.style.display = 'none';
+                        advancedToggle.innerHTML = '<span>+ Show Advanced Settings</span>';
+                    }
+                });
+            }
+            
+            // Toggle static IP fields
+            const useStaticIP = document.getElementById('useStaticIP');
+            if (useStaticIP) {
+                useStaticIP.addEventListener('change', function() {
+                    const staticIPFields = document.getElementById('staticIPFields');
+                    if (staticIPFields) {
+                        staticIPFields.style.display = this.checked ? 'block' : 'none';
+                    }
+                });
+            }
+        
+            // Initialize network scanning and configuration
+            const scanBtn = document.getElementById('scanBtn');
+            if (scanBtn) {
+                scanBtn.addEventListener('click', function() {
+                    clearAutoRetry();
+                    scanNetworks();
+                });
+                scanNetworks();  // Start scanning immediately
+                loadConfiguration();  // Load existing configuration
+            }
+
+            // Clear auto-retry timer
+            function clearAutoRetry() {
+                if (autoRetryTimer) {
+                    clearInterval(autoRetryTimer);
+                    autoRetryTimer = null;
+                }
+                document.getElementById('autoRetryInfo').style.display = 'none';
+                retryCountdown = 5;
+            }
+
+            // Scan for networks
+            function scanNetworks() {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('networkSection').style.display = 'none';
+                document.getElementById('autoRetryInfo').style.display = 'none';
+                
+                fetch('/api/scan')
+                    .then(response => response.json())
+                    .then(data => {
+                        const networkList = document.getElementById('networkList');
+                        networkList.innerHTML = '';
+                        
+                        if (data.networks && data.networks.length > 0) {
+                            // Clear any auto-retry if networks found
+                            clearAutoRetry();
+                            
+                            // Sort networks by signal strength (RSSI)
+                            data.networks.sort((a, b) => b.rssi - a.rssi);
+                            
+                            data.networks.forEach(network => {
+                                // Determine signal strength class
+                                let signalClass = 'weak';
+                                if (network.rssi > -55) signalClass = 'excellent';
+                                else if (network.rssi > -70) signalClass = 'good';
+                                else if (network.rssi > -80) signalClass = 'medium';
+                                
+                                // Create network item
+                                const networkItem = document.createElement('div');
+                                networkItem.className = 'network-item';
+                                networkItem.innerHTML = `
+                                    <div>${network.ssid}</div>
+                                    <div>
+                                        <div class="signal-strength ${signalClass}">
+                                            <div class="signal-bar bar1"></div>
+                                            <div class="signal-bar bar2"></div>
+                                            <div class="signal-bar bar3"></div>
+                                            <div class="signal-bar bar4"></div>
+                                        </div>
+                                        ${network.encryption ? '<span class="lock-icon"></span>' : ''}
+                                    </div>
+                                `;
+                                
+                                // Add click handler
+                                networkItem.addEventListener('click', function() {
+                                    document.getElementById('ssid').value = network.ssid;
+                                    document.getElementById('wifiForm').style.display = 'block';
+                                    
+                                    // Scroll to form on mobile
+                                    if (window.innerWidth <= 768) {
+                                        document.getElementById('wifiForm').scrollIntoView({ 
+                                            behavior: 'smooth', 
+                                            block: 'start' 
+                                        });
+                                    }
+                                    
+                                    // Focus password field after a short delay
+                                    setTimeout(() => {
+                                        document.getElementById('password').focus();
+                                    }, 300);
+                                    
+                                    document.getElementById('statusMessage').style.display = 'none';
+                                });
+                                
+                                networkList.appendChild(networkItem);
+                            });
+                        } else {
+                            // No networks found - start auto-retry
+                            if (!hasInitialScanFailed) {
+                                hasInitialScanFailed = true;
+                                startAutoRetry();
+                            } else {
+                                networkList.innerHTML = '<p style="padding: 15px; margin: 0;">No networks found. Please try scanning again.</p>';
+                            }
+                        }
+                        
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('networkSection').style.display = 'block';
+                    })
+                    .catch(error => {
+                        // Network scan failed - start auto-retry
+                        if (!hasInitialScanFailed) {
+                            hasInitialScanFailed = true;
+                            startAutoRetry();
+                        } else {
+                            document.getElementById('networkList').innerHTML = '<p style="padding: 15px; margin: 0;">Error scanning networks. Please try again.</p>';
+                        }
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('networkSection').style.display = 'block';
+                    });
+            }
+            
+            // Start auto-retry countdown
+            function startAutoRetry() {
+                document.getElementById('autoRetryInfo').style.display = 'block';
+                retryCountdown = 5;
+                
+                autoRetryTimer = setInterval(function() {
+                    retryCountdown--;
+                    document.getElementById('retryCountdown').textContent = retryCountdown;
+                    
+                    if (retryCountdown <= 0) {
+                        clearAutoRetry();
+                        scanNetworks();
+                    }
+                }, 1000);
+            }
+            
+            // Form submission handler
+            const wifiForm = document.getElementById('wifiForm');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            function submitForm() {
+                const ssid = document.getElementById('ssid').value;
+                const password = document.getElementById('password').value;
+                const useStaticIP = document.getElementById('useStaticIP').checked;
+                
+                let data = {
+                    ssid: ssid,
+                    password: password,
+                    use_static_ip: useStaticIP
+                };
+                
+                if (useStaticIP) {
+                    data.ip = document.getElementById('ipAddress').value;
+                    data.gateway = document.getElementById('gateway').value;
+                    data.subnet = document.getElementById('subnet').value;
+                    data.dns = document.getElementById('dns').value;
+                    
+                    // Validate IP addresses
+                    if (!validateIPAddress(data.ip) || !validateIPAddress(data.gateway) || 
+                        !validateIPAddress(data.subnet) || !validateIPAddress(data.dns)) {
+                        showStatus('Please enter valid IP addresses.', 'error');
+                        return;
+                    }
+                }
+                
+                // Show loading status
+                showStatus('Connecting to network...', 'info');
+                
+                fetch('/api/connect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                })
+                .then(() => {
+                    showStatus('Configuration saved! The device will restart and connect to your network. You can now close this page.', 'success');
+                })
+                .catch(error => {
+                    showStatus('Failed to save configuration. Please try again.', 'error');
+                });
+            }
+            
+            if (wifiForm) {
+                wifiForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    submitForm();
+                });
+            }
+            
+            if (connectBtn) {
+                connectBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    submitForm();
+                });
+            }
+            
+            // Handle Enter key in password field
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitForm();
+                    }
+                });
+            }
+        
+        // Load existing configuration
+        function loadConfiguration() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ssid) {
+                        document.getElementById('ssid').value = data.ssid;
+                        document.getElementById('useStaticIP').checked = data.use_static_ip;
+                        
+                        if (data.use_static_ip) {
+                            document.getElementById('staticIPFields').style.display = 'block';
+                            document.getElementById('ipAddress').value = data.ip;
+                            document.getElementById('gateway').value = data.gateway;
+                            document.getElementById('subnet').value = data.subnet;
+                            document.getElementById('dns').value = data.dns;
+                        }
+                        
+                        // Show the form
+                        document.getElementById('wifiForm').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    // console.error('Error loading configuration:', error);
+                });
+        }
+        
+        // Helper function to show status message
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = message;
+            statusDiv.style.display = 'block';
+            
+            // Set colour based on message type
+            if (type === 'error') {
+                statusDiv.style.color = 'var(--error-color)';
+            } else if (type === 'success') {
+                statusDiv.style.color = 'var(--success-color)';
+            } else {
+                statusDiv.style.color = 'var(--text-color)';
+            }
+        }
+        
+        // Helper function to validate IP address format
+        function validateIPAddress(ipAddress) {
+            const ipRegex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            return ipRegex.test(ipAddress);
+        }
+        
+        // Close the DOMContentLoaded event listener
+        });
+    </script>
+</body>
+</html>

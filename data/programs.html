@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Program Management</title>
+    <script>
+        // Prevents flash of default theme. Must be in the <head> and block.
+        // Check localStorage for theme mode and apply preload class
+        (function() {
+            try {
+                const savedMode = localStorage.getItem('furnaceThemeMode') || 'light';
+                if (savedMode === 'dark') {
+                    document.documentElement.classList.add('dark-mode-preload');
+                } else {
+                    document.documentElement.classList.add('light-mode-preload');
+                }
+            } catch (e) {
+                // Default to light mode if localStorage is not available
+                document.documentElement.classList.add('light-mode-preload');
+            }
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="/css/theme.css">
+    <!-- Theme, Navigation and App JS -->
+    <script src="/js/theme.js" defer></script>
+    <script src="/js/utils.js" defer></script>
+    <script src="/js/nav.js" defer></script>
+    <script src="/js/app.js" defer></script>
+    <script src="/js/chart.min.js"></script>
+    <!-- Main App JS (to be created/updated for program logic) -->
+    <script src="/js/programs.js" defer></script>
+    <style>
+      #program-controls {
+        margin-bottom: 24px;
+      }
+    </style>
+</head>
+<body>
+<!-- Save Program Modal -->
+<div id="saveProgramModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close" id="closeSaveProgramModal">&times;</span>
+    <h2>Save Temperature Program</h2>
+    <div class="form-group">
+      <label for="programNameInput">Program Name:</label>
+      <input type="text" id="programNameInput" maxlength="32" placeholder="Enter program name...">
+    </div>
+    <div class="form-group">
+      <label for="programDescInput">Description (optional):</label>
+      <textarea id="programDescInput" rows="3" placeholder="Enter a description for this program..."></textarea>
+    </div>
+    <div class="form-group">
+      <label for="programSlotSelect">Save to Slot:</label>
+      <select id="programSlotSelect">
+        <option value="0">Slot 1</option>
+        <option value="1">Slot 2</option>
+        <option value="2">Slot 3</option>
+        <option value="3">Slot 4</option>
+        <option value="4">Slot 5</option>
+        <option value="5">Slot 6</option>
+        <option value="6">Slot 7</option>
+        <option value="7">Slot 8</option>
+        <option value="8">Slot 9</option>
+        <option value="9">Slot 10</option>
+      </select>
+    </div>
+    <div class="btn-group">
+      <button id="confirmSaveProgramBtn" class="btn-primary">Save Program</button>
+      <button id="cancelSaveProgramBtn" class="btn-danger">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Schedule Program Modal -->
+<div id="scheduleProgramModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close" id="closeScheduleProgramModal">&times;</span>
+    <h2>Schedule Program Start</h2>
+    <div class="form-group">
+      <label for="scheduleTimeInput">Start Time (HH:MM, 24h):</label>
+      <input type="time" id="scheduleTimeInput" required>
+    </div>
+    <div id="scheduleWarning" style="color:orange; display:none;"></div>
+    <div class="btn-group">
+      <button id="confirmScheduleBtn" class="btn-primary">Schedule</button>
+      <button id="cancelScheduleBtn" class="btn-danger">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<main class="container">
+  <div id="navigation">
+    <!-- Navigation will be loaded here by JavaScript -->
+  </div>
+  <h1>Program Mode</h1>
+  <div id="program-preview">
+    <!-- Program chart/preview will go here -->
+    <p>Preview of the selected program will appear here.</p>
+  </div>
+  <div id="program-controls">
+    <label for="programSelect">Select Program:</label>
+    <select id="programSelect"></select>
+    <button id="startNextBtn">Start at Next Point</button>
+    <button id="scheduleBtn">Schedule</button>
+    <button id="importProgramBtn">Import</button>
+    <button id="exportProgramBtn">Export</button>
+  </div>
+  <div id="program-warning" style="display:none; color:orange;">
+    <!-- Warning if loading mid-way through a program -->
+  </div>
+</main>
+</body>
+</html> 

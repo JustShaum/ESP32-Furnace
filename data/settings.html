@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+    <title>Furnace Control System - Settings</title>
+    <script>
+        // Prevents flash of default theme. Must be in the <head> and block.
+        // Check localStorage for theme mode and apply preload class
+        (function() {
+            try {
+                const savedMode = localStorage.getItem('furnaceThemeMode') || 'light';
+                if (savedMode === 'dark') {
+                    document.documentElement.classList.add('dark-mode-preload');
+                } else {
+                    document.documentElement.classList.add('light-mode-preload');
+                }
+            } catch (e) {
+                // Default to light mode if localStorage is not available
+                document.documentElement.classList.add('light-mode-preload');
+            }
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="/css/theme.css">
+    <!-- JavaScript Libraries -->
+    <script src="/js/app.js"></script>
+    <script src="/js/theme.js"></script>
+    <script src="/js/utils.js" defer></script>
+    <script src="/js/nav.js" defer></script>
+    <style>
+        #error-log {
+            text-align: left;
+            white-space: pre-wrap; /* Ensures line breaks are respected */
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+
+    
+</head>
+<body>
+    <div class="container">
+        <!-- Include navigation component -->
+        <div id="navigation">
+            <!-- Navigation will be loaded here by JavaScript -->
+        </div>
+        <div class="title-section">
+            <h1>Settings</h1>
+        </div>
+        
+        <!-- WiFi Settings Card removed -->
+        
+
+        
+        <!-- System Toggles and Controls -->
+        <div class="settings-card">
+            <h2>System Controls</h2>
+            <div class="form-check" style="margin-bottom: 15px;">
+                <input type="checkbox" id="pwmEnable" style="margin-right: 8px;">
+                <label for="pwmEnable" style="font-weight: 500; font-size: 1.1em;">
+                    Enable PWM Control for precise temperature control
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="pwmFrequency">PWM Frequency (Hz):</label>
+                <input type="number" id="pwmFrequency" min="0.1" max="40000" step="0.1" value="1000" class="form-control">
+                <small>Allowed range: 0.1 - 40,000 Hz</small>
+            </div>
+            <button id="savePwmBtn" class="success-button">Save PWM Settings</button>
+        </div>
+        
+        <!-- PID Control Settings Card -->
+        <div class="settings-card">
+            <h2>PID Control Settings</h2>
+            <p><small>Configure Proportional-Integral-Derivative control for precise temperature regulation</small></p>
+            
+            <div class="form-group">
+                <label for="pid-kp">Proportional Gain (Kp):</label>
+                <input type="number" id="pid-kp" min="0" max="100" step="0.1" value="2.0">
+                <p><small>Controls how aggressively the system responds to temperature errors. Higher values = faster response but potential overshoot.</small></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="pid-ki">Integral Gain (Ki):</label>
+                <input type="number" id="pid-ki" min="0" max="10" step="0.01" value="0.1">
+                <p><small>Eliminates steady-state error. Higher values = faster elimination of offset but potential oscillation.</small></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="pid-kd">Derivative Gain (Kd):</label>
+                <input type="number" id="pid-kd" min="0" max="10" step="0.01" value="0.05">
+                <p><small>Reduces overshoot and improves stability. Higher values = more damping but slower response.</small></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="pid-sample-time">Sample Time (seconds):</label>
+                <input type="number" id="pid-sample-time" min="0.1" max="10" step="0.1" value="1.0">
+                <p><small>How often the PID controller calculates a new output. Lower values = more responsive but higher CPU usage.</small></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="pid-output-min">Output Minimum (%):</label>
+                <input type="number" id="pid-output-min" min="0" max="100" step="1" value="0">
+                <p><small>Minimum PWM output percentage. Set to 0 for full range control.</small></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="pid-output-max">Output Maximum (%):</label>
+                <input type="number" id="pid-output-max" min="0" max="100" step="1" value="100">
+                <p><small>Maximum PWM output percentage. Set to 100 for full power when needed.</small></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="pid-setpoint-window">Setpoint Window (&deg;C):</label>
+                <input type="number" id="pid-setpoint-window" min="0.1" max="10" step="0.1" value="2.0">
+                <p><small>Temperature range around setpoint where PID control is active. Outside this window, full on/off control is used.</small></p>
+            </div>
+            
+            <div class="form-check" style="margin-bottom: 15px;">
+                <input type="checkbox" id="pid-enabled" style="margin-right: 8px;">
+                <label for="pid-enabled" style="font-weight: 500; font-size: 1.1em;">
+                    Enable PID Control
+                </label>
+                <p><small>When enabled, PID control will be used instead of simple on/off control for more precise temperature regulation.</small></p>
+            </div>
+            
+            <button id="savePidBtn" class="success-button">Save PID Settings</button>
+        </div>
+        
+        <!-- Time Settings Card -->
+        <div class="settings-card">
+            <h2>Time Settings</h2>
+            <div class="form-check">
+                <input type="checkbox" id="use-manual-time" name="use-manual-time">
+                <label for="use-manual-time">Set Time Manually</label>
+            </div>
+            <div id="manual-time-settings" style="display:none;">
+                <div class="form-group">
+                    <label for="manual-datetime">Manual Date & Time:</label>
+                    <input type="datetime-local" id="manual-datetime">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="utc-offset">UTC Offset (hours):</label>
+                <input type="number" id="utc-offset" name="utc-offset" min="-12" max="14" step="1" value="0">
+                <p><small>Enter your local time offset from UTC (e.g., +1 for UK summer, 0 for UTC, -5 for US Eastern Standard Time).</small></p>
+            </div>
+            <p><small>Manually synchronize time with NTP server (requires internet connection)</small></p>
+            <div class="button-group">
+                <button id="save-time">Save Time Settings</button>
+                <button id="sync-time-btn">Sync Time with NTP</button>
+            </div>
+        </div>
+        
+        <!-- Theme Settings Card -->
+        <div class="settings-card">
+            <h2>Theme Settings</h2>
+            <p><small><strong>Global Theme:</strong> Theme settings are now stored globally on the furnace controller and will apply to all devices accessing this interface.</small></p>
+            <div class="theme-settings-grid">
+                <div class="form-group">
+                    <label for="primaryColorPicker">Primary Colour</label>
+                    <input type="color" id="primaryColorPicker">
+                </div>
+                <div class="form-group">
+                    <label for="backgroundColorPicker">Background Colour</label>
+                    <input type="color" id="backgroundColorPicker">
+                </div>
+                <div class="form-group">
+                    <label for="cardBackgroundPicker">Card Background Colour</label>
+                    <input type="color" id="cardBackgroundPicker">
+                </div>
+                <div class="form-group">
+                    <label for="textColorPicker">Text Colour</label>
+                    <input type="color" id="textColorPicker">
+                </div>
+                <div class="form-group">
+                    <label for="borderColorPicker">Border Colour</label>
+                    <input type="color" id="borderColorPicker">
+                </div>
+                <div class="form-group">
+                    <label for="highlightColorPicker">Highlight Colour</label>
+                    <input type="color" id="highlightColorPicker">
+                </div>
+            </div>
+            <div class="theme-preview" id="themePreview">
+                <div class="preview-header">Preview</div>
+                <div class="preview-content">
+                    <div class="preview-card">
+                        <h3>Card Title</h3>
+                        <p>This is a preview of how your theme will look.</p>
+                        <button class="preview-button">Example Button</button>
+                    </div>
+                </div>
+            </div>
+            <div class="theme-actions">
+                <button id="save-theme-btn" class="button primary">Save Theme</button>
+                <button id="resetThemeBtn" class="button secondary">Reset to Default</button>
+            </div>
+        </div>
+
+
+        
+        <!-- Logging Settings Card -->
+        <div class="settings-card">
+            <h2>Logging Settings</h2>
+            <div class="form-group">
+                <label for="logging-frequency">Temperature Logging Frequency (seconds):</label>
+                <input type="number" id="logging-frequency" min="15" max="3600" value="60">  
+                <p><small>Minimum: 15 seconds, Maximum: 3600 seconds (1 hour). Default: 60 seconds.</small></p>
+                <p><small>Note: 300 Records is approximately 10KB</small></p>
+            </div>
+            <div class="form-group">
+                <label for="error-cleanup">Clear error messages automatically after (minutes):</label>
+                <input type="number" id="error-cleanup" min="0" value="300">
+                <p><small>Set to 0 to disable automatic clearing</small></p>
+            </div>
+            <div class="form-group">
+                <label for="temp-log-cleanup">Clear temperature log automatically after (minutes):</label>
+                <input type="number" id="temp-log-cleanup" min="0" value="1440">
+                <p><small>Set to 0 to disable automatic clearing. Recommended: 1440 minutes (24 hours)</small></p>
+            </div>
+            <div class="form-group">
+                <h2>Storage Information:</h2>
+                <div id="storage-info" style="font-weight: bold;">Loading...</div>
+            </div>
+            <button id="save-logging-frequency">Save Logging Settings</button>
+        </div>
+        
+        <!-- Temperature Settings Card -->
+        <div class="settings-card">
+            <h2>Temperature Settings</h2>
+            
+            <div class="form-group">
+                <label for="temp-increment">Temperature Adjustment Increment (&deg;C):</label>
+                <input type="number" id="temp-increment" min="1" max="100" value="10">
+                <p>Set the increment used when adjusting temperature values. Smaller values allow for more precise control.</p>
+            </div>
+            
+
+            
+            <div class="form-group">
+                <label for="tempResolution">Temperature Points per Hour:</label>
+                <select id="tempResolution">
+                    <option value="1">1 (Hourly) - Simple</option>
+                    <option value="2">2 (Every 30 minutes)</option>
+                    <option value="4">4 (Every 15 minutes)</option>
+                    <option value="6">6 (Every 10 minutes)</option>
+                    <option value="12">12 (Every 5 minutes) - Detailed</option>
+                </select>
+                <p>Higher resolution allows more precise temperature control.</p>
+                <div class="info-box warning" style="margin-top: 10px;">
+                    <p><strong>Warning:</strong> Changing resolution will reset all temperature profiles. 
+                    Export profiles before changing this setting.</p>
+                </div>
+            </div>
+            
+            <button id="save-temp-settings" style="margin-bottom: 20px;">Save Temperature Settings</button>
+            
+            <button id="saveResolutionBtn" class="success-button" style="margin-bottom: 15px;">Save Resolution</button>
+        </div>
+        
+        <!-- System Reset Card -->
+        <div class="settings-card">
+            <h2>System Reset</h2>
+            <p>Warning: This will reset all settings to default values.</p>
+            <button id="reset-all" class="danger-button">Reset All Settings</button>
+        </div>
+    </div>
+
+    <script>
+        // Main initialization function
+function initializeApplication() {
+    try {
+        // Theme initialization is now handled entirely by theme.js
+        
+        // Initialize storage info with loading state
+        const storageInfo = document.getElementById('storage-info');
+        if (storageInfo) {
+            storageInfo.innerHTML = `
+                <div class="loading-spinner"></div>
+                <span style="margin-left: 10px;">Loading storage information...</span>
+            `;
+        }
+        
+        // Load system settings including storage info
+        if (typeof loadSettings === 'function') {
+            loadSettings();
+        }
+        
+        // Setup PWM handlers if on PWM settings page
+        if (document.getElementById('pwmEnable') && typeof setupPWMHandlers === 'function') {
+            setupPWMHandlers();
+        }
+        
+        // Setup Temperature Settings and Log handlers
+        if (document.getElementById('save-temp-settings')) {
+            setupTemperatureSettingsHandlers();
+        }
+        
+        // Setup Reset All Settings button
+        setupResetHandler();
+                
+                // Setup reset all button if it exists
+                const resetButton = document.getElementById('reset-all');
+                if (resetButton) {
+                    resetButton.addEventListener('click', function() {
+                        if (confirm('Are you sure you want to reset all settings to default? This cannot be undone.')) {
+                            fetch('/api/reset', { method: 'POST' })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        alert('All settings have been reset to default.');
+                                        window.location.reload();
+                                    } else {
+                                        alert('Failed to reset settings: ' + (data.message || 'Unknown error'));
+                                    }
+                                })
+                                .catch(error => {
+                                    alert('Error resetting settings: ' + error.message);
+                                });
+                        }
+                    });
+                }
+                
+                // Theme initialization is handled by theme.js
+                
+            } catch (error) {
+                alert('Error initializing application: ' + error.message);
+            }
+        }
+        
+        // --- Temperature Settings ---
+        function setupTemperatureSettingsHandlers() {
+            const saveButton = document.getElementById('save-temp-settings');
+            if (saveButton) {
+                saveButton.addEventListener('click', () => {
+                    const increment = document.getElementById('temp-increment').value;
+                    
+                    const payload = {
+                        temperatureIncrement: parseFloat(increment)
+                    };
+
+                    fetch('/api/settings/temperature', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Temperature settings saved successfully.');
+                        } else {
+                            alert('Error saving settings: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => alert('Error saving settings: ' + error.message));
+                });
+            }
+        }
+
+        // Initialization is now handled by the DOMContentLoaded event at the bottom of the file
+        
+        // Load all settings (storage, error log, etc)
+        function loadSettings() {
+            // Show loading state
+            const storageInfo = document.getElementById('storage-info');
+            if (storageInfo) {
+                storageInfo.innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <span style="margin-left: 10px;">Loading storage information...</span>
+                `;
+            }
+
+            // Storage info
+            fetch('/api/status')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    
+                    // Update storage information display
+                    updateStorageInfo(data);
+                    
+                    // Time settings
+                    if (data.useManualTime !== undefined) {
+                        const manualTime = document.getElementById('use-manual-time');
+                        if (manualTime) manualTime.checked = data.useManualTime;
+                        const manualTimeSettings = document.getElementById('manual-time-settings');
+                        if (manualTimeSettings) manualTimeSettings.style.display = data.useManualTime ? 'block' : 'none';
+                    }
+                    if (data.currentTime) {
+                        const manualDateTime = document.getElementById('manual-datetime');
+                        if (manualDateTime) {
+                            const now = new Date();
+                            // Format for datetime-local input: YYYY-MM-DDTHH:mm
+                            const year = now.getFullYear();
+                            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                            const day = now.getDate().toString().padStart(2, '0');
+                            const hours = now.getHours().toString().padStart(2, '0');
+                            const minutes = now.getMinutes().toString().padStart(2, '0');
+                            manualDateTime.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                        }
+                    }
+                    // UTC offset
+                    if (data.utcOffset !== undefined) {
+                        const utcOffsetInput = document.getElementById('utc-offset');
+                        if (utcOffsetInput) utcOffsetInput.value = data.utcOffset;
+                    }
+                    // Temperature settings
+                    if (data.tempResolution !== undefined) {
+                        const tempRes = document.getElementById('tempResolution');
+                        if (tempRes) tempRes.value = data.tempResolution;
+                    }
+                    if (data.temperatureIncrement !== undefined) {
+                        const tempInc = document.getElementById('temp-increment');
+                        if (tempInc) tempInc.value = data.temperatureIncrement;
+                    }
+
+
+                })
+                .catch(error => {
+                    const storageInfo = document.getElementById('storage-info');
+                    if (storageInfo) {
+                        storageInfo.innerHTML = `
+                            <div style="color: #d32f2f; text-align: center; padding: 10px;">
+                                <p>Error loading storage information</p>
+                                <p><small>${error.message || 'Check console for details'}</small></p>
+                                <button onclick="loadSettings()" style="margin-top: 10px; padding: 5px 10px;">
+                                    Retry
+                                </button>
+                            </div>
+                        `;
+                    }
+                });
+        }
+        
+        // OTA Update Function
+        function showOtaUpload() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.bin,.bin.gz';
+            
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const progressBar = document.getElementById('update-progress-bar');
+                const progressContainer = document.getElementById('update-progress');
+                const statusText = document.getElementById('update-status');
+                const updateButton = document.getElementById('update-firmware');
+                
+                // Update UI
+                updateButton.disabled = true;
+                updateButton.textContent = 'Updating...';
+                progressBar.style.width = '0%';
+                progressBar.style.backgroundColor = '#4CAF50';
+                progressContainer.style.display = 'block';
+                statusText.textContent = 'Starting firmware update...';
+                
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        const percentRounded = Math.round(percentComplete);
+                        progressBar.style.width = percentRounded + '%';
+                        statusText.textContent = 'Uploading: ' + percentRounded + '%';
+                    }
+                };
+                
+                xhr.onload = function() {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        statusText.textContent = 'Update complete! Device will restart...';
+                        statusText.style.color = '#4CAF50';
+                        progressBar.style.width = '100%';
+                        progressBar.style.backgroundColor = '#4CAF50';
+                        // Give some time for the device to process before redirecting
+                        setTimeout(() => window.location.href = '/', 5000);
+                    } else {
+                        statusText.textContent = 'Update failed with status ' + xhr.status;
+                        statusText.style.color = '#f44336';
+                        progressBar.style.backgroundColor = '#f44336';
+                        updateButton.disabled = false;
+                        updateButton.textContent = 'Update Firmware';
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    statusText.textContent = 'Network error during update';
+                    statusText.style.color = '#f44336';
+                    progressBar.style.backgroundColor = '#f44336';
+                    updateButton.disabled = false;
+                    updateButton.textContent = 'Update Firmware';
+                };
+                
+                // Create FormData and append the file
+                const formData = new FormData();
+                formData.append('firmware', file, file.name);
+                
+                xhr.open('POST', '/update', true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.send(formData);
+            };
+            
+            input.click();
+        }
+
+        /**
+         * Updates the storage information display with data from the API response
+         * @param {Object} data - The API response data
+         */
+        function updateStorageInfo(data) {
+            const storageInfo = document.getElementById('storage-info');
+            if (!storageInfo) return;
+
+            // Try to get storage info from either nested storage object or root level
+            const storageData = data.storage || {
+                totalBytes: data.spiffsTotalBytes || 0,
+                usedBytes: data.spiffsUsedBytes || 0,
+                freeBytes: data.spiffsFreeBytes || 0,
+                percentUsed: 0
+            };
+
+            // If we have bytes, convert to KB/MB and calculate percentage
+            if (storageData.totalBytes > 0) {
+                const totalKB = storageData.totalBytes / 1024;
+                const usedKB = storageData.usedBytes / 1024;
+                const freeKB = storageData.freeBytes / 1024;
+                const percentUsed = storageData.percentUsed || 
+                    (storageData.totalBytes > 0 ? 
+                        ((storageData.usedBytes * 100) / storageData.totalBytes) : 0);
+
+                storageInfo.innerHTML = `
+                    <div style="width: 100%;">
+                        <p>Total: ${totalKB.toFixed(0)} KB (${(totalKB / 1024).toFixed(2)} MB)</p>
+                        <p>Used: ${usedKB.toFixed(0)} KB (${(usedKB / 1024).toFixed(2)} MB)</p>
+                        <p>Free: ${freeKB.toFixed(0)} KB (${(freeKB / 1024).toFixed(2)} MB)</p>
+                        <p>Usage: ${percentUsed.toFixed(1)}%</p>
+                        <div style="width: 100%; background: #ccc; height: 20px; border-radius: 10px; overflow: hidden; margin-top: 8px;">
+                            <div style="width: ${Math.min(100, percentUsed)}%; height: 100%; 
+                                background: ${percentUsed < 70 ? '#4caf50' : percentUsed < 90 ? '#ff9800' : '#f44336'};">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                storageInfo.innerHTML = '<div style="text-align: center; color: #666;">Storage information not available</div>';
+            }
+        }
+
+
+            
+            //Save Resolution
+			document.getElementById('saveResolutionBtn').addEventListener('click', function() {
+				const resolution = parseFloat(document.getElementById('tempResolution').value);
+				
+				if (confirm('Warning: Changing temperature resolution will reset all temperature profiles. Are you sure you want to continue?')) {
+					fetch('/api/updateResolution', {
+						method: 'POST',
+						headers: {'Content-Type': 'application/json'},
+						body: JSON.stringify({resolution: resolution})
+					})
+					.then(response => {
+						if (!response.ok) {
+							showNotification('Failed to update resolution', 'error');
+							return;
+						}
+						return response.text();
+					})
+					.then(() => {
+						showNotification('Temperature resolution updated. The device will restart.', 'success');
+						setTimeout(() => {
+							window.location.reload();
+						}, 8000);  // Give device time to restart
+					})
+					.catch(error => {
+						showNotification('Failed to update resolution: ' + error.message, 'error');
+					});
+				}
+			});
+
+            // Save Time Settings
+            document.getElementById('save-time').addEventListener('click', function() {
+                const useManualTime = document.getElementById('use-manual-time').checked;
+                const utcOffset = parseInt(document.getElementById('utc-offset').value, 10) || 0;
+                let timeData = null;
+
+                if (useManualTime) {
+                    const manualTimeInput = document.getElementById('manual-datetime');
+                    timeData = manualTimeInput.value;
+                    if (!timeData) {
+                        showNotification('Please select a date and time', 'error');
+                        return;
+                    }
+                }
+
+                // Show loading state
+                const saveBtn = this;
+                const originalText = saveBtn.textContent;
+                saveBtn.textContent = 'Saving...';
+                saveBtn.disabled = true;
+
+                fetch('/api/time', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        useManualTime: useManualTime, 
+                        time: timeData, 
+                        utcOffset: utcOffset 
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    showNotification('Time settings saved successfully', 'success');
+                    
+                    // Update UTC offset display if returned in the response
+                    if (data.utcOffset !== undefined) {
+                        const utcOffsetElement = document.getElementById('utc-offset');
+                        if (utcOffsetElement) {
+                            utcOffsetElement.value = data.utcOffset;
+                        }
+                    }
+                    
+                    // Reset button state
+                    saveBtn.textContent = originalText;
+                    saveBtn.disabled = false;
+                })
+                .catch(error => {
+                    showNotification('Error saving time settings: ' + error.message, 'error');
+                })
+                .finally(() => {
+                    // Restore button state
+                    saveBtn.textContent = originalText;
+                    saveBtn.disabled = false;
+                });
+            });
+
+            // Sync Time Button
+            const syncTimeBtn = document.getElementById('sync-time-btn');
+            if (syncTimeBtn) {
+                syncTimeBtn.addEventListener('click', function() {
+                    // Show loading state
+                    const originalText = this.textContent;
+                    this.textContent = 'Syncing...';
+                    this.disabled = true;
+                    
+                    fetch('/api/syncTime', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'}
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            showNotification('Failed to sync time', 'error');
+                            this.textContent = originalText;
+                            this.disabled = false;
+                            return;
+                        }
+                        return response.text();
+                    })
+                    .then(() => {
+                        showNotification('Time synchronized successfully with NTP server', 'success');
+                        // Reload the page to show updated time
+                        window.location.reload();
+                    })
+                    .catch(error => {
+                        showNotification('Error syncing time: ' + error.message, 'error');
+                        this.textContent = originalText;
+                        this.disabled = false;
+                    })
+                    .finally(() => {
+                        // Restore button state
+                        this.textContent = originalText;
+                        this.disabled = false;
+                    });
+                });
+            }
+            
+            // Reset All Settings is now handled by setupResetHandler()
+            
+            // WiFi Settings section has been removed
+            // No need to fetch WiFi settings anymore
+            
+            // Load Time and Logging Settings
+			fetch('/api/status')
+				.then(response => response.json())
+				.then(data => {
+                    
+                    document.getElementById('use-manual-time').checked = data.useManualTime;
+                    document.getElementById('manual-time-settings').style.display = data.useManualTime ? 'block' : 'none';
+                    
+                    // Set UTC offset if available
+                    const utcOffsetElement = document.getElementById('utc-offset');
+                    if (utcOffsetElement) {
+                        if (typeof data.utcOffset === 'number') {
+                            utcOffsetElement.value = data.utcOffset;
+                        } else {
+                            // Default to 0 if not provided
+                            utcOffsetElement.value = 0;
+                        }
+                    }
+                    
+                    if (data.currentTime) {
+                        const manualDateTime = document.getElementById('manual-datetime');
+                        if (manualDateTime) {
+                            const now = new Date();
+                            // Format for datetime-local input: YYYY-MM-DDTHH:mm
+                            const year = now.getFullYear();
+                            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                            const day = now.getDate().toString().padStart(2, '0');
+                            const hours = now.getHours().toString().padStart(2, '0');
+                            const minutes = now.getMinutes().toString().padStart(2, '0');
+                            manualDateTime.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                        }
+                    }
+                    
+                    // Set logging frequency if the element exists
+                    const loggingFrequencyElement = document.getElementById('logging-frequency');
+                    if (loggingFrequencyElement) {
+                        if (typeof data.loggingFrequencySeconds === 'number' && !isNaN(data.loggingFrequencySeconds)) {
+                            loggingFrequencyElement.value = data.loggingFrequencySeconds;
+                        } else {
+                            loggingFrequencyElement.value = 60;
+                        }
+                    }
+					
+					// Set current resolution
+					const tempResolutionElement = document.getElementById('tempResolution');
+					if (tempResolutionElement && data.tempResolution) {
+						tempResolutionElement.value = data.tempResolution;
+					}
+					
+					// Get temp increment
+					const tempIncrementElement = document.getElementById('temp-increment');
+					if (tempIncrementElement && data.temperatureIncrement) {
+						tempIncrementElement.value = data.temperatureIncrement;
+					}
+					
+
+					
+					// Set error cleanup setting - improved handling
+					const errorCleanupElement = document.getElementById('error-cleanup');
+					if (errorCleanupElement) {
+						if (data.errorCleanupMinutes !== undefined) {
+							errorCleanupElement.value = data.errorCleanupMinutes;
+						} else if (data.errorCleanupHours !== undefined) {
+							const minutes = data.errorCleanupHours * 60;
+							errorCleanupElement.value = minutes;
+						} else {
+							// Use default of 300 if nothing is set
+							errorCleanupElement.value = 300;
+						}
+					}
+					
+					// Set temp log cleanup setting - improved handling
+					const tempLogCleanupElement = document.getElementById('temp-log-cleanup');
+					if (tempLogCleanupElement) {
+						if (data.tempLogCleanupMinutes !== undefined) {
+							tempLogCleanupElement.value = data.tempLogCleanupMinutes;
+						} else {
+							// Use default of 1440 if nothing is set
+							tempLogCleanupElement.value = 1440;
+						}
+					}
+					
+					updateStorageInfo(data);
+				})
+				.catch(error => {
+					showNotification('Error loading system settings: ' + error.message, 'error');
+				});
+
+
+
+    </script>
+    <script>
+// Download temperature log as CSV
+function downloadTempLog() {
+    fetch('/api/templog')
+        .then(response => {
+            if (!response.ok) {
+                showNotification('Failed to fetch temperature log', 'error');
+                return;
+            }
+            return response.text();
+        })
+        .then(csvData => {
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'temperature_log.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+            showNotification('Could not download log: ' + error.message, 'error');
+        });
+}
+// Clear temperature log via API (returns a promise)
+function clearTempLog() {
+    if (!confirm('Are you sure you want to clear the temperature log? This cannot be undone.')) return Promise.resolve(); // Confirmation dialog preserved
+    return fetch('/api/clearTempLog', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Temperature log cleared successfully', 'success');
+                return true;
+            }
+            showNotification(data.message || 'Failed to clear temperature log', 'error');
+            return false;
+        })
+        .catch(error => {
+            showNotification('Failed to clear temperature log: ' + error.message, 'error');
+            return false;
+        });
+}
+
+// Setup PWM handlers
+function setupPWMHandlers() {
+    const pwmEnable = document.getElementById('pwmEnable');
+    const pwmFrequency = document.getElementById('pwmFrequency');
+    const savePwmBtn = document.getElementById('savePwmBtn');
+    
+    if (!savePwmBtn) {
+        showNotification('Save PWM button not found', 'error');
+        return;
+    }
+    
+    // Remove existing event listeners to prevent duplicates
+    const newSavePwmBtn = savePwmBtn.cloneNode(true);
+    savePwmBtn.parentNode.replaceChild(newSavePwmBtn, savePwmBtn);
+    
+    // Function to load current PWM settings
+    function loadPWMSettings() {
+        fetch('/api/pwm')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(settings => {
+                if (pwmEnable) pwmEnable.checked = settings.enabled || false;
+                if (pwmFrequency) pwmFrequency.value = settings.frequency || 1000;
+            })
+            .catch(error => {
+                showNotification('Failed to load PWM settings: ' + error.message, 'error');
+            });
+    }
+    
+    // Save PWM settings
+    newSavePwmBtn.addEventListener('click', async function() {
+        const button = this;
+        const originalText = button.textContent;
+        button.textContent = 'Saving...';
+        button.disabled = true;
+
+        try {
+            const pwmEnable = document.getElementById('pwmEnable');
+            const pwmFrequency = document.getElementById('pwmFrequency');
+
+            const settings = {
+                pwm_enabled: pwmEnable.checked,
+                pwm_frequency: parseFloat(pwmFrequency.value)
+            };
+
+            if (isNaN(settings.pwm_frequency) || settings.pwm_frequency < 0.1 || settings.pwm_frequency > 40000) {
+                showNotification('PWM Frequency must be between 0.1 and 40,000 Hz', 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+
+            const response = await fetch('/api/pwm', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Invalid response from server' }));
+                showNotification(errorData.message || `HTTP error! status: ${response.status}`, 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('PWM settings saved successfully', 'success');
+            } else {
+                showNotification(data.message || 'Failed to save PWM settings', 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+        } catch (error) {
+            showNotification('Failed to save PWM settings: ' + error.message, 'error');
+        } finally {
+            // Restore button state
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    });
+    
+    // Load initial settings
+    loadPWMSettings();
+}
+
+// Temperature Settings
+function setupTemperatureHandlers() {
+    const tempIncrement = document.getElementById('temp-increment');
+    const tempResolution = document.getElementById('tempResolution');
+    const saveTempBtn = document.getElementById('save-temp-settings');
+    
+    if (!saveTempBtn) {
+        showNotification('Save temperature settings button not found', 'error');
+        return;
+    }
+    
+    // Add click event listener for save button
+    saveTempBtn.addEventListener('click', saveTemperatureSettings);
+    
+    // Remove existing event listeners to prevent duplicates
+    const newSaveTempBtn = saveTempBtn.cloneNode(true);
+    saveTempBtn.parentNode.replaceChild(newSaveTempBtn, saveTempBtn);
+    newSaveTempBtn.addEventListener('click', saveTemperatureSettings);
+    
+    // Load current temperature settings
+    async function loadTemperatureSettings() {
+        try {
+            const response = await fetch('/api/settings/temperature');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const settings = await response.json();
+            
+            if (tempIncrement) tempIncrement.value = settings.temperatureIncrement || 1.0;
+            
+            return settings;
+        } catch (error) {
+            showNotification('Failed to load temperature settings: ' + error.message, 'error');
+            throw error;
+        }
+    }
+    
+    // Save temperature settings
+    async function saveTemperatureSettings() {
+        // Store original button state
+        const originalText = newSaveTempBtn ? newSaveTempBtn.textContent : 'Save Temperature Settings';
+        
+        try {
+            // Validate inputs
+        const settings = {
+            temperatureIncrement: parseFloat(tempIncrement.value) || 1.0
+        };
+        
+        if (isNaN(settings.temperatureIncrement) || settings.temperatureIncrement <= 0) {
+                showNotification('Temperature increment must be a positive number', 'error');
+                if (newSaveTempBtn) {
+                    newSaveTempBtn.textContent = originalText;
+                    newSaveTempBtn.disabled = false;
+                }
+                return;
+            }
+            
+
+            
+            // Show loading state
+            newSaveTempBtn.textContent = 'Saving...';
+            newSaveTempBtn.disabled = true;
+            
+            // Send to server
+            const response = await fetch('/api/settings/temperature', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Invalid response from server' }));
+                showNotification(errorData.message || `HTTP error! status: ${response.status}`, 'error');
+                if (newSaveTempBtn) {
+                    newSaveTempBtn.textContent = originalText || 'Save Temperature Settings';
+                    newSaveTempBtn.disabled = false;
+                }
+                return;
+            }
+            
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('Temperature settings saved successfully', 'success');
+                
+                // Update any live displays if needed
+                if (window.updateTemperatureDisplays) {
+                    window.updateTemperatureDisplays(settings);
+                }
+                
+                return data;
+            } else {
+                showNotification(data.message || 'Failed to save temperature settings', 'error');
+                if (newSaveTempBtn) {
+                    newSaveTempBtn.textContent = originalText || 'Save Temperature Settings';
+                    newSaveTempBtn.disabled = false;
+                }
+                return;
+            }
+        } catch (error) {
+            showNotification('Failed to save temperature settings: ' + error.message, 'error');
+        } finally {
+            // Reset button state
+            if (newSaveTempBtn) {
+                newSaveTempBtn.textContent = originalText || 'Save Temperature Settings';
+                newSaveTempBtn.disabled = false;
+            }
+        }
+    }
+    
+    // Set up event listeners
+    newSaveTempBtn.addEventListener('click', saveTemperatureSettings);
+    
+    // Load settings when the page loads
+    loadTemperatureSettings().catch(error => showNotification('Error loading temperature settings: ' + error.message, 'error'));
+}
+
+// Save logging settings
+function setupLoggingHandlers() {
+    const saveLoggingBtn = document.getElementById('save-logging-frequency');
+    if (!saveLoggingBtn) return;
+    
+    // Remove existing event listeners to prevent duplicates
+    const newSaveLoggingBtn = saveLoggingBtn.cloneNode(true);
+    saveLoggingBtn.parentNode.replaceChild(newSaveLoggingBtn, saveLoggingBtn);
+    
+    newSaveLoggingBtn.addEventListener('click', async function() {
+        const button = this;
+        const originalText = button.textContent;
+        button.textContent = 'Saving...';
+        button.disabled = true;
+        
+        try {
+            const frequency = parseInt(document.getElementById('logging-frequency').value);
+            const errorCleanup = parseInt(document.getElementById('error-cleanup').value);
+            const tempLogCleanup = parseInt(document.getElementById('temp-log-cleanup').value);
+            
+            // Validate inputs
+            if (isNaN(frequency) || frequency < 15 || frequency > 3600) {
+                showNotification('Please enter a valid logging frequency between 15 and 3600 seconds (15s minimum)', 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+            
+            if (isNaN(errorCleanup) || errorCleanup < 0) {
+                showNotification('Please enter a valid error cleanup time (0 or greater)', 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+            
+            if (isNaN(tempLogCleanup) || tempLogCleanup < 0) {
+                showNotification('Please enter a valid temperature log cleanup time (0 or greater)', 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+            
+            // Send settings to server
+            const response = await fetch('/api/settings/logging', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    loggingFrequencySeconds: frequency,
+                    errorCleanupMinutes: errorCleanup,
+                    tempLogCleanupMinutes: tempLogCleanup
+                })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {}
+                showNotification(errorMessage, 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+            
+            const data = await response.json();
+
+            if (data && data.success) {
+                showNotification('Logging settings saved successfully', 'success');
+            } else {
+                showNotification(data.message || 'Failed to save logging settings', 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+        } catch (error) {
+            showNotification('Failed to save logging settings: ' + error.message, 'error');
+            button.textContent = originalText;
+            button.disabled = false;
+            return;
+        } finally {
+            // Reset button state
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    });
+}
+
+// PID Settings Functions
+function setupPIDHandlers() {
+    const savePidBtn = document.getElementById('savePidBtn');
+    if (!savePidBtn) return;
+    
+    // Remove existing event listeners to prevent duplicates
+    const newSavePidBtn = savePidBtn.cloneNode(true);
+    savePidBtn.parentNode.replaceChild(newSavePidBtn, savePidBtn);
+    
+    async function loadPIDSettings() {
+        try {
+            const response = await fetch('/api/settings/pid', {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Update form fields with loaded values
+            if (data.kp !== undefined) document.getElementById('pid-kp').value = data.kp;
+            if (data.ki !== undefined) document.getElementById('pid-ki').value = data.ki;
+            if (data.kd !== undefined) document.getElementById('pid-kd').value = data.kd;
+            if (data.sampleTime !== undefined) document.getElementById('pid-sample-time').value = data.sampleTime;
+            if (data.outputMin !== undefined) document.getElementById('pid-output-min').value = data.outputMin;
+            if (data.outputMax !== undefined) document.getElementById('pid-output-max').value = data.outputMax;
+            if (data.setpointWindow !== undefined) document.getElementById('pid-setpoint-window').value = data.setpointWindow;
+            if (data.enabled !== undefined) document.getElementById('pid-enabled').checked = data.enabled;
+            
+        } catch (error) {
+            showNotification('Error loading PID settings: ' + error.message, 'error');
+        }
+    }
+    
+    async function savePIDSettings() {
+        const button = newSavePidBtn;
+        const originalText = button.textContent;
+        button.textContent = 'Saving...';
+        button.disabled = true;
+        
+        try {
+            const kp = parseFloat(document.getElementById('pid-kp').value);
+            const ki = parseFloat(document.getElementById('pid-ki').value);
+            const kd = parseFloat(document.getElementById('pid-kd').value);
+            const sampleTime = parseFloat(document.getElementById('pid-sample-time').value);
+            const outputMin = parseInt(document.getElementById('pid-output-min').value);
+            const outputMax = parseInt(document.getElementById('pid-output-max').value);
+            const setpointWindow = parseFloat(document.getElementById('pid-setpoint-window').value);
+            const enabled = document.getElementById('pid-enabled').checked;
+            
+            // Validate inputs
+            if (isNaN(kp) || kp < 0 || kp > 100) {
+                showNotification('Please enter a valid Kp value between 0 and 100', 'error');
+                return;
+            }
+            
+            if (isNaN(ki) || ki < 0 || ki > 10) {
+                showNotification('Please enter a valid Ki value between 0 and 10', 'error');
+                return;
+            }
+            
+            if (isNaN(kd) || kd < 0 || kd > 10) {
+                showNotification('Please enter a valid Kd value between 0 and 10', 'error');
+                return;
+            }
+            
+            if (isNaN(sampleTime) || sampleTime < 0.1 || sampleTime > 10) {
+                showNotification('Please enter a valid sample time between 0.1 and 10 seconds', 'error');
+                return;
+            }
+            
+            if (isNaN(outputMin) || outputMin < 0 || outputMin > 100) {
+                showNotification('Please enter a valid output minimum between 0 and 100', 'error');
+                return;
+            }
+            
+            if (isNaN(outputMax) || outputMax < 0 || outputMax > 100) {
+                showNotification('Please enter a valid output maximum between 0 and 100', 'error');
+                return;
+            }
+            
+            if (outputMin >= outputMax) {
+                showNotification('Output minimum must be less than output maximum', 'error');
+                return;
+            }
+            
+            if (isNaN(setpointWindow) || setpointWindow < 0.1 || setpointWindow > 10) {
+                showNotification('Please enter a valid setpoint window between 0.1 and 10°C', 'error');
+                return;
+            }
+            
+            const settings = {
+                kp: kp,
+                ki: ki,
+                kd: kd,
+                sampleTime: sampleTime,
+                outputMin: outputMin,
+                outputMax: outputMax,
+                setpointWindow: setpointWindow,
+                enabled: enabled
+            };
+            
+            const response = await fetch('/api/settings/pid', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Invalid response from server' }));
+                showNotification(errorData.message || `HTTP error! status: ${response.status}`, 'error');
+                return;
+            }
+            
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('PID settings saved successfully', 'success');
+                return data;
+            } else {
+                showNotification(data.message || 'Failed to save PID settings', 'error');
+                return;
+            }
+        } catch (error) {
+            showNotification('Failed to save PID settings: ' + error.message, 'error');
+        } finally {
+            // Reset button state
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    }
+    
+    // Set up event listeners
+    newSavePidBtn.addEventListener('click', savePIDSettings);
+    
+    // Load settings when the page loads
+    loadPIDSettings().catch(error => showNotification('Error loading PID settings: ' + error.message, 'error'));
+}
+
+// Main initialization function
+function initializeApp() {
+    try {
+
+        // Initialize manual time toggle
+        const useManualTimeCheckbox = document.getElementById('use-manual-time');
+        const manualTimeSettings = document.getElementById('manual-time-settings');
+        
+        if (useManualTimeCheckbox && manualTimeSettings) {
+            // Set initial state
+            manualTimeSettings.style.display = useManualTimeCheckbox.checked ? 'block' : 'none';
+            
+            // Add change event listener
+            useManualTimeCheckbox.addEventListener('change', function() {
+                manualTimeSettings.style.display = this.checked ? 'block' : 'none';
+                if (this.checked && !document.getElementById('manual-datetime').value) {
+                    const now = new Date();
+                    // Format for datetime-local input: YYYY-MM-DDTHH:mm
+                    const year = now.getFullYear();
+                    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                    const day = now.getDate().toString().padStart(2, '0');
+                    const hours = now.getHours().toString().padStart(2, '0');
+                    const minutes = now.getMinutes().toString().padStart(2, '0');
+                    document.getElementById('manual-datetime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                }
+            });
+        }
+        
+
+        loadSettings();
+        
+        // Theme initialization is handled by theme.js
+        
+        // Initialize logging handlers
+        if (typeof setupLoggingHandlers === 'function') {
+            setupLoggingHandlers();
+        }
+        
+        // Initialize PWM handlers if on PWM settings page
+        if (document.getElementById('pwmEnable') && typeof setupPWMHandlers === 'function') {
+            setupPWMHandlers();
+        }
+        
+        // Initialize PID handlers if on PID settings page
+        if (document.getElementById('savePidBtn') && typeof setupPIDHandlers === 'function') {
+            setupPIDHandlers();
+        }
+        
+        // Load error log if on error log page
+        // This section is removed as per the edit hint.
+        
+    } catch (error) {
+        showNotification('Error during initialization: ' + error.message, 'error');
+    }
+}
+
+// Setup Reset All Settings button
+function setupResetHandler() {
+    const resetAllBtn = document.getElementById('reset-all');
+    if (resetAllBtn) {
+        resetAllBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset all settings to default? This will erase all profiles and configurations.')) {
+                fetch('/api/reset', { method: 'POST' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(() => {
+                    showNotification('All settings have been reset. The device will restart.', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000); // Give the device time to restart
+                })
+                .catch(error => {
+                    showNotification('Failed to reset settings: ' + error.message, 'error');
+                });
+            }
+        });
+    } else {
+        showNotification('Reset button not found', 'error');
+    }
+}
+
+// Initialize application when DOM is fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize temperature settings
+    if (typeof setupTemperatureHandlers === 'function') {
+        setupTemperatureHandlers();
+    }
+    
+    // Initialize reset button handler
+    setupResetHandler();
+
+    // Initialize the app - this will handle loading settings and other initialization
+    if (typeof initializeApp === 'function') {
+        initializeApp();
+    } else if (typeof initializeApplication === 'function') {
+        // Fallback to older initialization if initializeApp doesn't exist
+        initializeApplication();
+    }
+});
+</script>
+</body>
+</html>
